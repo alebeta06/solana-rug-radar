@@ -20,6 +20,7 @@
     "burst": 1,
     "maxQueue": 500,
     "timeoutMs": 10000,
+    "devHistoryTokenLimit": 200,
     "cache": {
       "identityMaxEntries": 100000,
       "securityTtlSeconds": 600,

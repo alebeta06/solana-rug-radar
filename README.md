@@ -32,6 +32,21 @@ Their endpoints are the photos; we make the movie.
 | 3 | Same final liquidity across the creator's tokens | Automation fingerprint |
 
 Graduation speed was **rejected** as a signal: legitimate tokens also graduate in 0 s.
+
+### Thresholds: what is validated and what is not yet
+
+Only **one** threshold comes from research on real data. The rest are the ranges we
+**observed** on the operators we studied. They are starting values, **not proven cut-offs**,
+and will be calibrated in phase 4 against creators that are and are not known operators.
+
+| Signal | Threshold | Status | Evidence |
+|---|---|---|---|
+| 1. Launch burst | **> 10** tokens by one creator in 24 h | ✅ **Validated** on real data | Operators: 48 and 96 launches; legitimate controls: 1 each |
+| 2. Liquidity collapse | liquidity **≤ $5** | ⚠️ Observed range, to calibrate in phase 4 | Collapsed tokens sat at $1–5 |
+| 2. Liquidity collapse | **≥ 150** holders | ⚠️ Observed range, to calibrate in phase 4 | 150–800 holders remained |
+| 2. Liquidity collapse | ATH market cap **≥ $200k** | ⚠️ Observed range, to calibrate in phase 4 | Peaks of $200k–350k |
+| 3. Automation | final liquidity within **$1.50** across **≥ 3** tokens | ⚠️ Observed, to calibrate in phase 4 | 4 tokens within $1.25 (1296.82–1298.07) |
+
 All thresholds live in [`config/config.json`](config/config.json), never in the code.
 
 ## Architecture
@@ -113,4 +128,5 @@ src/rest/               client.ts · token-bucket.ts · ttl-lru-cache.ts · liqu
 src/config.ts           config loader
 src/replay.ts           phase-1 entrypoint
 tests/                  vitest suites + tests/fixtures (redacted real frames)
+docs/RESUMEN_Fase_1.md  phase-1 design rationale, decision by decision (Spanish)
 ```

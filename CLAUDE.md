@@ -79,9 +79,18 @@ dado; los demás son los rangos observados, a calibrar en la fase 4.
 - WS: `wss://ws.solami.dev/data/subscribe?chain=solana&api_key=KEY&type=...&backfill=200`
   (`backfill` ≤ 200 eventos por tipo al conectar; luego llega `backfill_end`).
 - REST: `https://api.solami.dev/data/...` con cabecera `x-api-key`. **1 req/s en plan gratuito.**
-  - `GET /data/token/security?mint=` · `GET /data/token/dev-history?mint=`
-  - El nombre del parámetro `mint` NO está verificado contra la API real aún.
-  - **dev-history recibe un MINT pero devuelve el historial del CREADOR** → se cachea por creador.
+  VERIFICADO contra la API real el 2026-09-24 (la documentación y el prompt original estaban mal):
+  - `GET /data/token/security?chain=solana&address=<MINT>`
+  - `GET /data/token/dev?chain=solana&address=<MINT>&limit=<N>` — es el "dev-history";
+    `/data/token/dev-history` da 404 `unknown data route`.
+  - `chain` es obligatorio (sin él: 400 `missing field chain`). El mint va en `address`
+    (`?mint=` da 400 `no token address provided`).
+  - **Sin `limit`, dev solo lista 20 tokens** aunque diga `truncated: false` y `scanned: 63`.
+    Por eso se envía `limit` (config `rest.devHistoryTokenLimit`, 200). Tope real del servidor: desconocido
+    (aceptó 100000 sin error). Para la señal 1 usar `tokens_launched`, no `tokens.length`.
+  - La respuesta real de dev trae campos extra (`ath_time`, `ath_mcap_time`, `indexed_from_creation`)
+    que hoy se descartan. Respuestas reales en `tests/fixtures/rest-*.json`.
+  - **dev recibe un MINT pero devuelve el historial del CREADOR** → se cachea por creador.
 - SDK `solami` de npm (0.1.56): cubre RPC, gRPC, SWQOS y WS de RPC, **NO la Data API (Blur)**.
   Por eso usamos `fetch` nativo (REST) y usaremos `WebSocket` nativo de Node 24 (fase 2).
 

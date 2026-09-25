@@ -30,6 +30,7 @@ const configSchema = z.object({
     burst: positiveInt,
     maxQueue: z.int().nonnegative(),
     timeoutMs: positiveInt,
+    devHistoryTokenLimit: positiveInt,
     cache: z.object({
       identityMaxEntries: positiveInt,
       securityTtlSeconds: positiveInt,

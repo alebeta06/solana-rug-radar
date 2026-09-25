@@ -32,6 +32,8 @@ export interface RestClientOptions {
   readonly baseUrl: string;
   readonly apiKey: string;
   readonly timeoutMs: number;
+  /** `limit` for the dev endpoint: without it Solami returns only 20 of the creator's tokens. */
+  readonly devHistoryTokenLimit: number;
   readonly cache: RestCacheOptions;
   readonly liquidityHistory: LiquidityHistoryOptions;
   readonly bucket: TokenBucket;
@@ -52,8 +54,13 @@ export class RestError extends Error {
   }
 }
 
+// Verified against api.solami.dev on 2026-09-24 (not the docs): the dev-history data lives at
+// `/data/token/dev` (`/data/token/dev-history` is "unknown data route"), both endpoints require
+// `chain`, and the mint goes in `address` (`?mint=` answers "no token address provided").
+// The dev endpoint lists only 20 tokens by default (with `truncated: false`!) unless `limit` is sent.
 const SECURITY_PATH = '/data/token/security';
-const DEV_HISTORY_PATH = '/data/token/dev-history';
+const DEV_HISTORY_PATH = '/data/token/dev';
+const CHAIN = 'solana';
 
 export class SolamiRestClient {
   readonly liquidity: LiquidityHistory;
@@ -93,7 +100,7 @@ export class SolamiRestClient {
       `security:${mint}`,
       () => this.security.get(mint),
       async () => {
-        const raw = await this.request(SECURITY_PATH, mint);
+        const raw = await this.request(SECURITY_PATH, { address: mint });
         const security = this.parse(SECURITY_PATH, securitySchema(this.clock()), raw);
         this.security.set(mint, security);
         return security;
@@ -107,7 +114,10 @@ export class SolamiRestClient {
       `dev-history:${mint}`,
       () => this.cachedHistoryFor(mint),
       async () => {
-        const raw = await this.request(DEV_HISTORY_PATH, mint);
+        const raw = await this.request(DEV_HISTORY_PATH, {
+          address: mint,
+          limit: String(this.options.devHistoryTokenLimit),
+        });
         const { queried, history } = this.parse(
           DEV_HISTORY_PATH,
           devHistorySchema(this.clock()),
@@ -165,9 +175,10 @@ export class SolamiRestClient {
     return promise;
   }
 
-  private async request(path: string, mint: string): Promise<unknown> {
+  private async request(path: string, params: Readonly<Record<string, string>>): Promise<unknown> {
     const url = new URL(path, this.options.baseUrl);
-    url.searchParams.set('mint', mint);
+    url.searchParams.set('chain', CHAIN);
+    for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
     let response: Response;
     try {
       response = await this.fetchFn(url, {

@@ -171,15 +171,3 @@ La API key va en variables de entorno, nunca en el fichero de configuración ni 
 | SDK oficial de Solami | `fetch` y `WebSocket` nativos | El SDK `solami` no cubre la Data API (Blur): solo RPC, gRPC y transacciones |
 | Caché por mint, para siempre | Tres niveles; historial por creador | La liquidez cambia cada minuto; ahorra peticiones |
 | — | Borrado de la API key en las URLs | Solami la incrusta en las URLs de imagen |
-
----
-
-## ⚠️ Pendientes para ti
-
-1. **Crear `.env.example`.** Tu configuración de permisos me impide escribir ficheros `.env*`.
-   El contenido está en el mensaje final de la sesión.
-2. **Tu API key está en los `.jsonl` de `data/`** (más de 1.100 veces). Ya están en
-   `.gitignore`. Si los has compartido o subido a algún sitio, **rota la key**.
-3. El proyecto aún no es un repositorio git. Para que funcione la CI: `git init`, crear el repo
-   en GitHub y hacer push.
-4. Averiguar cómo se piden los 4 snapshots, y confirmar que el parámetro REST se llama `mint`.

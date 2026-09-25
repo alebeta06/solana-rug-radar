@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Decimal } from '../../src/core/schema.js';
 import { millisValue, secondsValue, unixMillis } from '../../src/core/time.js';
@@ -77,6 +78,7 @@ function setup(responses: (() => Response | Promise<Response>)[], bucket?: Token
     baseUrl: 'https://api.solami.dev',
     apiKey: 'sk_test',
     timeoutMs: 1000,
+    devHistoryTokenLimit: 200,
     cache: {
       identityMaxEntries: 100,
       securityTtlSeconds: 600,
@@ -97,12 +99,37 @@ const ok = (body: string) => () => new Response(body, { status: 200 });
 describe('SolamiRestClient', () => {
   afterEach(() => vi.useRealTimers());
 
-  it('sends the api key header and the mint as query param', async () => {
-    const { client, fetchMock } = setup([ok(SECURITY)]);
+  // Pins the routes and params verified against the real api.solami.dev (2026-09-24):
+  // `?mint=` → 400 "no token address provided", missing `chain` → 400,
+  // `/data/token/dev-history` → 404 "unknown data route", no `limit` → only 20 tokens listed.
+  it('calls the verified routes with chain=solana, the mint as `address` and a token limit', async () => {
+    const { client, fetchMock } = setup([ok(SECURITY), ok(devHistory())]);
     await client.getSecurity('MINT_A');
-    const [url, init] = fetchMock.mock.calls[0]!;
-    expect((url as URL).href).toBe('https://api.solami.dev/data/token/security?mint=MINT_A');
-    expect(init?.headers).toMatchObject({ 'x-api-key': 'sk_test' });
+    await client.getCreatorHistory('MINT_A');
+    const urls = fetchMock.mock.calls.map(([url]) => (url as URL).href);
+    expect(urls).toEqual([
+      'https://api.solami.dev/data/token/security?chain=solana&address=MINT_A',
+      'https://api.solami.dev/data/token/dev?chain=solana&address=MINT_A&limit=200',
+    ]);
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init?.headers).toMatchObject({ 'x-api-key': 'sk_test' });
+    }
+  });
+
+  it('parses real responses from api.solami.dev', async () => {
+    const real = (name: string) => readFileSync(new URL(`../fixtures/${name}`, import.meta.url), 'utf8');
+    const { client } = setup([ok(real('rest-security.json')), ok(real('rest-dev.json'))]);
+    const mint = '6KrgtZ2j4Ydc8T5gdjLJ6PXNqE99fJDNkS7ypw5pVbJK';
+
+    const security = await client.getSecurity(mint);
+    expect(security.mint).toBe(mint);
+    expect(security.top10Pct).toBeInstanceOf(Decimal);
+
+    const history = await client.getCreatorHistory(mint);
+    expect(history.creator).toBe('BpxbkXawVYwVMrm8kaqrcG1bfwkHimRza5wv6igrid1R');
+    expect(history.tokensLaunched).toBe(63);
+    expect(history.tokens).toHaveLength(63);
+    expect(client.getIdentity(mint)).toMatchObject({ launchpad: 'meteora_dbc', name: 'Stonked' });
   });
 
   it('normalizes security and caches it for its TTL', async () => {
