@@ -32,5 +32,37 @@
       "maxMints": 50000,
       "maxReadingsPerMint": 120
     }
+  },
+  "stream": {
+    "url": "wss://ws.solami.dev/data/subscribe",
+    "chain": "solana",
+    "types": ["token_create", "pool_create", "graduation", "liquidity", "transfer", "swap", "meme"],
+    "backfill": 200,
+    "dedupWindowPerType": 1000,
+    "staleAfterMs": 30000,
+    "reconnect": {
+      "initialDelayMs": 1000,
+      "maxDelayMs": 60000,
+      "multiplier": 2,
+      "resetAfterMs": 30000
+    },
+    "queue": {
+      "capacity": 50000,
+      "critical": ["token_create", "pool_create", "graduation"],
+      "normal": ["liquidity", "meme", "metadata"]
+    }
+  },
+  "persistence": {
+    "enabled": true,
+    "dir": "data/live",
+    "maxFileMB": 50,
+    "maxBufferMB": 16,
+    "firehoseTypes": ["swap", "transfer"],
+    "lifecycleMaxTotalMB": 1024,
+    "firehoseMaxTotalMB": 500
+  },
+  "health": {
+    "port": 8080,
+    "logEveryMs": 30000
   }
 }

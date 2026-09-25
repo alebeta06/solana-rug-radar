@@ -5,7 +5,7 @@ coverage/
 
 # Raw captures: Solami embeds the API key in metadata `image_url` (…?api_key=sk_…).
 # Never commit them. Redacted samples for tests live in tests/fixtures/.
-data/*.jsonl
+data/**/*.jsonl
 
 # Tooling
 .claude-flow/

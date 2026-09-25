@@ -73,6 +73,15 @@ export function redactApiKey(url: string): string {
   }
 }
 
+/**
+ * Redacts `api_key=…` anywhere in free text (raw frames, logs, health). Pass `apiKey` too when
+ * known: the literal key is then removed wherever it appears, not only after `api_key=`.
+ */
+export function redactSecrets(text: string, apiKey?: string | null): string {
+  const withoutLiteral = apiKey ? text.replaceAll(apiKey, 'REDACTED') : text;
+  return withoutLiteral.replace(/api_key=[^"&#\s]*/g, 'api_key=REDACTED');
+}
+
 export function formatIssues(error: z.ZodError): string[] {
   return error.issues.map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`);
 }

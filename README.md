@@ -4,8 +4,10 @@ Real-time detection of **serial rug-pull operators** on Solana, built on
 [Solami](https://solami.dev)'s Blur data stream.
 Solami sidetrack, Colosseum Crypto World's Fair hackathon.
 
-> **Status: phase 1 of 5.** Types, the normalization layer, the rate-limited REST client,
-> Docker and CI are in place. Live ingestion, state machine, detector and dashboard come next.
+> **Status: phase 2 of 5.** Live ingestion of the Blur stream is running (backfill,
+> reconnection, deduplication, backpressure, raw persistence, health endpoint) on top of
+> phase 1's normalization layer and rate-limited REST client. State machine, detector and
+> dashboard come next.
 
 ## The problem
 
@@ -55,10 +57,12 @@ All thresholds live in [`config/config.json`](config/config.json), never in the 
                  Solami Blur (WebSocket firehose)            Solami Data REST (1 req/s)
                               │                                        │
                               ▼                                        ▼
-  phase 2   ┌─────────────────────────────┐        ┌──────────────────────────────────┐
-            │ ingestion (reconnect,       │        │ SolamiRestClient        phase 1 ✅│
-            │ backfill=200)               │        │  TokenBucket 1 req/s, bounded    │
-            └─────────────┬───────────────┘        │  3-tier cache: identity ∞ ·      │
+  phase 2 ✅ ┌─────────────────────────────┐        ┌──────────────────────────────────┐
+            │ EventSource: live WS │ replay│        │ SolamiRestClient        phase 1 ✅│
+            │  backfill, reconnect+backoff│        │  TokenBucket 1 req/s, bounded    │
+            │  dedup · priority backpress.│        │  3-tier cache: identity ∞ ·      │
+            │  raw JSONL · /health        │        │                                  │
+            └─────────────┬───────────────┘        │                                  │
                           ▼                        │  security 10 min · history 60 s  │
   phase 1 ✅ ┌─────────────────────────────┐        │  (history cached BY CREATOR)     │
             │ normalization border        │        │  LiquidityHistory time series    │
@@ -90,7 +94,17 @@ All thresholds live in [`config/config.json`](config/config.json), never in the 
 - **Designed for the free plan.** One request per second, no burst, a bounded queue, and caches
   shaped by how the data changes: `dev-history` is keyed by creator, so one operator's 48 tokens
   cost one request.
-- **Bounded memory.** ~86,000 tokens are created per day, so every cache and queue has a size limit.
+- **Bounded memory.** ~86,000 tokens are created per day, and the full stream carries ~970
+  events/s (measured: swaps and transfers are chain-wide). Every cache and queue has a size limit.
+- **One interface, two origins.** Live WebSocket and on-disk replay deliver events through the
+  same `EventSource` interface and the same pipeline, so later phases cannot tell them apart:
+  development and tests run without network, and replay is the fallback if stream access shrinks.
+- **Deduplication key chosen from data.** `signature + ix_index + inner_ix_index` is *not*
+  unique: one swap instruction emits two events, one per side of the pair (5,868 collisions in
+  our captures). Adding the mint makes it unique across 181k real events.
+- **Backpressure drops by priority, it never "stops reading".** A firehose cannot be paused:
+  the server would disconnect us and the reconnect backfill only recovers ~0.5 s of swaps. The
+  bounded queue drops swaps/transfers first and token launches last, and counts every drop.
 - **Least privilege.** The API key only needs the *Data API* role.
 
 ## Run it
@@ -101,9 +115,28 @@ Requirements: Docker. For local development, Node.js 24+.
 docker compose up --build
 ```
 
-Phase 1 replays captured Blur frames through the normalization layer and prints a per-type
-report. It needs no API key: redacted real samples ship in the image. To also replay your own
-captures, drop `.jsonl` files into `./data/`.
+- **With an API key** (`SOLAMI_API_KEY` in `.env`): connects to the live Blur stream, starts
+  from the backfill and switches to realtime. The raw stream is saved to `./data/live/`.
+- **Without a key:** replays `./data/` plus the redacted real samples bundled in the image,
+  through the same pipeline, then exits. A jury needs nothing else.
+
+Health: <http://localhost:8080/health> (JSON; 200 healthy, 503 not) and a summary line in the
+logs every 30 s. Stop with Ctrl+C: it closes the socket, flushes pending disk writes and exits.
+
+### Disk usage
+
+The full raw stream is ~58 GB/day, so persistence is capped. **Defaults are conservative on
+purpose:** 1 GB for lifecycle events (launches, graduations, liquidity, meme…) and 500 MB for
+swap/transfer; the oldest files are deleted first. To keep more, add to `.env`:
+
+```bash
+PERSIST_LIFECYCLE_MAX_MB=10240   # 10 GB ≈ 4 days of lifecycle events
+PERSIST_FIREHOSE_MAX_MB=5120     # 5 GB ≈ 2 hours of swaps + transfers
+```
+
+Other options: `INGEST_SOURCE=live|replay` forces the origin; `REPLAY_PATHS=a.jsonl,dir/` picks
+what to replay. Everything else (types, backfill, reconnect backoff, queue size) is in
+`config/config.json`.
 
 Local development:
 
@@ -112,7 +145,8 @@ npm ci
 npm run lint            # eslint + typecheck (includes compile-time type tests)
 npm test                # vitest
 npm run test:coverage
-npm run build && npm start
+npm run build && npm start   # ingestion (live with a key, replay without)
+npm run replay               # check ./data captures against the normalization border
 ```
 
 Copy `.env.example` to `.env` and set `SOLAMI_API_KEY` (a key with only the Data API role).
@@ -125,8 +159,11 @@ config/config.json      thresholds, rate limit, cache TTLs (validated at startup
 src/core/               time.ts (branded time) · json.ts (lossless parse) · schema.ts (field validators)
 src/events/             types.ts (normalized events) · schemas.ts (raw→normalized) · normalize.ts
 src/rest/               client.ts · token-bucket.ts · ttl-lru-cache.ts · liquidity-history.ts
+src/ingest/             source.ts (EventSource + FrameProcessor) · live-source.ts · replay-source.ts
+                        dedup.ts · event-queue.ts · backoff.ts · raw-persister.ts · health.ts
 src/config.ts           config loader
-src/replay.ts           phase-1 entrypoint
+src/main.ts             ingestion entrypoint
+src/replay.ts           offline check of captures
 tests/                  vitest suites + tests/fixtures (redacted real frames)
-docs/RESUMEN_Fase_1.md  phase-1 design rationale, decision by decision (Spanish)
+docs/RESUMEN_Fase_*.md  design rationale per phase, decision by decision (Spanish)
 ```

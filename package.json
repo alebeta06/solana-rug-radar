@@ -9,7 +9,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/replay.js data",
+    "start": "node --env-file-if-exists=.env dist/main.js",
+    "replay": "node dist/replay.js data",
     "lint": "eslint . && tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"

@@ -1,13 +1,29 @@
 # One command: `docker compose up --build`
-# Phase 1 runs the replay: every captured frame in ./data goes through the normalization layer.
-# Later phases add the live ingestion, detector and dashboard services here.
+#
+# Phase 2 runs the ingestion:
+# - with SOLAMI_API_KEY in .env → live Blur stream (backfill, reconnection, persistence)
+# - without it → replays ./data + the bundled samples through the same pipeline, then exits
+#
+# Health: http://localhost:8080/health · Stop: Ctrl+C (closes the socket, flushes disk)
+# Raw stream is persisted to ./data/live with conservative caps (1 GB lifecycle + 500 MB
+# swap/transfer). Raise them in .env: PERSIST_LIFECYCLE_MAX_MB / PERSIST_FIREHOSE_MAX_MB.
 services:
   radar:
     build: .
+    init: true # forwards Ctrl+C / SIGTERM to node for a clean shutdown
     env_file:
       - path: .env
         required: false
+    ports:
+      - "8080:8080"
     volumes:
-      - ./data:/app/data:ro
+      - ./data:/app/data
       - ./config:/app/config:ro
-    restart: "no"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    restart: on-failure
+    stop_grace_period: 15s

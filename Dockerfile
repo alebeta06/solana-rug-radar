@@ -14,10 +14,11 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY config ./config
-# Redacted real frames (one+ per type), so the replay works for anyone cloning the repo:
+# Redacted real frames, so the replay (plan B, no API key) works for anyone cloning the repo:
 # raw captures in ./data are git-ignored because they embed the API key.
-COPY tests/fixtures/events.jsonl ./samples/events.jsonl
+COPY tests/fixtures/events.jsonl tests/fixtures/stream-sample.jsonl ./samples/
 USER node
-# Phase 1: replay captured frames through the normalization layer.
-# `data` = your own captures (mounted, optional); `samples` = the bundled redacted frames.
-CMD ["node", "dist/replay.js", "data", "samples"]
+EXPOSE 8080
+# Phase 2: ingestion. Live Blur stream when SOLAMI_API_KEY is set; otherwise replays
+# ./data (mounted, optional) + the bundled samples through the same pipeline.
+CMD ["node", "dist/main.js"]

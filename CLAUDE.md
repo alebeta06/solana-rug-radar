@@ -13,8 +13,8 @@ creador. Sus endpoints son fotos; nosotros hacemos la película.
 
 ## Plan por fases
 
-1. ✅ Esqueleto, tipos, capa de normalización, cliente REST, Docker, CI (esta fase)
-2. Ingesta del WebSocket (reconexión, backfill, backpressure)
+1. ✅ Esqueleto, tipos, capa de normalización, cliente REST, Docker, CI
+2. ✅ Ingesta del WebSocket (reconexión, backfill, dedup, contrapresión, persistencia, salud)
 3. Máquina de estados por token / creador (memoria acotada)
 4. Detector (las 3 señales de abajo)
 5. Dashboard
@@ -68,16 +68,31 @@ dado; los demás son los rangos observados, a calibrar en la fase 4.
 9. `top10_pct` puede ser `"100"` en tokens sanos (el pool cuenta como holder). No usarlo sin
    descontar el pool.
 10. `graduated_time` = `0` → aún no graduó (→ `null`), no 1970.
-11. Volumen: ~1 `token_create`/s, ~86.000/día. Toda estructura por token/creador DEBE estar
-    acotada (`TtlLruCache` con `maxEntries`, colas con `maxQueue`).
+11. Volumen: ~1 `token_create`/s, ~86.000/día, PERO el stream completo con los 7 tipos es
+    **~970 frames/s** (medido): `swap` ~440/s y `transfer` ~450/s son el firehose de TODA Solana.
+    Toda estructura por token/creador DEBE estar acotada (`TtlLruCache` con `maxEntries`,
+    colas con capacidad). En crudo: ~58 GB/día (swap 38, transfer 18, resto 2,4).
 12. `transfer`: `mint` nunca trae `src_owner`; `burn` nunca trae `dst_owner`; ~3% de
     `transfer` sin `dst_owner` (causa desconocida). `swap.mcap_usd` falta en ~1%.
 13. `total_tax_pct`: no confirmado si es fracción o porcentaje. Solo compararlo consigo mismo.
 
 ## Endpoints
 
-- WS: `wss://ws.solami.dev/data/subscribe?chain=solana&api_key=KEY&type=...&backfill=200`
-  (`backfill` ≤ 200 eventos por tipo al conectar; luego llega `backfill_end`).
+- WS: `wss://ws.solami.dev/data/subscribe?chain=solana&api_key=KEY&type=a,b,c&backfill=200`
+  VERIFICADO en vivo el 2026-09-24:
+  - Varios tipos: lista separada por comas en un solo `type=`. Un evento por mensaje WS.
+  - Al conectar: `connected` (eco del filtro), hasta 200 eventos de backfill por tipo
+    (`backfill: true`), `backfill_end` (~1 s), y luego tiempo real.
+  - **`transfer` NO tiene backfill**: lo perdido durante una desconexión no se recupera.
+  - **`metadata` llega aunque no se pida** (~30/s, `catchup: true`).
+  - **El backfill reenvía bytes idénticos** al evento original (salvo el flag `backfill`):
+    verificado con dos conexiones solapadas, 200/200 en token_create, pool_create, graduation,
+    liquidity, swap y meme (muestra de 30 s).
+  - Filtros de servidor: `dex=a,b` funciona (`dexes=` se ignora); el filtro aplica a TODA la
+    conexión y **elimina los `transfer`** (no tienen dex). También existen `mints`, `pools`,
+    `traders`, `min_volume_usd` (vistos en el eco de `connected`, no probados).
+  - Al cerrar nosotros, el servidor no completa el handshake de cierre (código 1006).
+    No depender del código de cierre.
 - REST: `https://api.solami.dev/data/...` con cabecera `x-api-key`. **1 req/s en plan gratuito.**
   VERIFICADO contra la API real el 2026-09-24 (la documentación y el prompt original estaban mal):
   - `GET /data/token/security?chain=solana&address=<MINT>`
@@ -102,6 +117,44 @@ Control: `connected`, `backfill_end`.
 Snapshots (`launches`, `graduating`, `graduated`, `trending`): **PENDIENTES**. No llegan
 suscribiéndose con `type=`; hay que averiguar cómo se piden. Hoy pasan como `UnverifiedSnapshot`
 con el payload en `raw: unknown` (cuarentena).
+
+## Ingesta (fase 2, `src/ingest/`)
+
+- **Una interfaz, dos orígenes**: `EventSource` (`events()`, `health()`, `close()`), con
+  `LiveSource` (WebSocket) y `ReplaySource` (JSONL). Ambos pasan cada trama por el mismo
+  `FrameProcessor` (parse sin pérdida → normalizar → dedup). Las fases 3–5 no saben el origen.
+  `src/main.ts` usa directo si hay `SOLAMI_API_KEY`, replay si no (`INGEST_SOURCE` lo fuerza).
+- **Dedup** (`dedup.ts`), clave elegida con 181k eventos reales:
+  tx (swap, transfer, token_create, pool_create) = `signature|ix_index|inner_ix_index|mint`
+  (liquidity usa `base_mint`). **Sin el mint falla**: una instrucción de swap emite DOS eventos,
+  uno por lado del par (5.868 colisiones con `signature+ix+inner`). graduation = `mint|slot`.
+  meme/metadata/etc. = hash del contenido (sin identidad natural). Ventana **por tipo**,
+  ≥ backfill (validado en config): una global la vaciarían los swaps en segundos.
+- **Contrapresión** (`event-queue.ts`): NO se deja de leer (un firehose no se puede pausar:
+  el servidor desconecta y el backfill solo recupera 200/tipo ≈ 0,5 s de swaps). Cola acotada
+  que descarta por prioridad: bulk (swap, transfer) primero, normal (liquidity, meme, metadata),
+  critical (token_create, pool_create, graduation, control) lo último. Orden de entrega =
+  orden de llegada. Descartes contados en health.
+- **Reconexión**: solo si se cae (close/error) o hay **silencio** > `staleAfterMs` (TCP
+  medio abierto). Backoff exponencial con jitter "igual" (nunca ~0 ms); se resetea solo si la
+  conexión duró ≥ `resetAfterMs` (un servidor que acepta y cierra no provoca bucle).
+- **Persistencia** (`raw-persister.ts`): JSONL crudo con la key redactada en `data/live/`.
+  Dos niveles con tope propio: `lifecycle` (todo menos swap/transfer) y `firehose`
+  (swap/transfer). Topes por defecto CONSERVADORES: 1 GB / 500 MB (un jurado lo ejecuta sin
+  leer la config). Se suben con `PERSIST_LIFECYCLE_MAX_MB` / `PERSIST_FIREHOSE_MAX_MB`.
+  Rota por tamaño o día UTC; el tamaño de los ficheros cerrados se lleva EN MEMORIA
+  (stat() infravalora un fichero recién rotado aún sin volcar).
+- **Salud**: `GET /health` (200/503) + línea de log periódica: estado, último frame,
+  contadores por tipo (recibidos, duplicados, descartados, entregados), malformados,
+  cola, reconexiones, disco. Nunca contiene la key (redactada).
+
+### Trabajo futuro: NO persistir el firehose entero (depende de la fase 3)
+
+Persistir ~38 GB/día de swaps trata el firehose como si todos los swaps importaran; solo
+importan los de tokens que ya vigilamos. Lo correcto: **una segunda conexión WS suscrita a
+`swap` filtrado por `mints=` de los tokens bajo seguimiento** (lista que da la máquina de
+estados de la fase 3), en lugar de suscribirse al firehose completo. Verificar antes cómo
+admite el servidor una lista larga de mints y si permite actualizarla sin reconectar.
 
 ## Caché REST (TTL en config)
 
@@ -129,6 +182,7 @@ tras esperar turno en la cola se re-consulta la caché y, si hay acierto, se dev
 npm run lint          # eslint + tsc (incluye comprobaciones de tipos en tests)
 npm test              # vitest
 npm run test:coverage
-npm run build && npm start          # replay de data/*.jsonl
-docker compose up --build           # lo mismo en contenedor (+ muestras incluidas)
+npm run build && npm start          # ingesta: directo con SOLAMI_API_KEY, replay sin ella
+npm run replay                      # comprobar data/*.jsonl contra el borde (exit 1 si hay rechazos)
+docker compose up --build           # ingesta en contenedor; health en localhost:8080/health
 ```

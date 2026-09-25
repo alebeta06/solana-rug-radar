@@ -6,8 +6,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      // replay.ts is the phase-1 CLI entrypoint (file I/O + printing); it is exercised by docker compose.
-      exclude: ['src/replay.ts'],
+      // CLI entrypoints (process wiring, signals, printing): exercised by running them
+      // (docker compose up, live smoke test), not unit-tested. Their logic lives in tested modules.
+      exclude: ['src/replay.ts', 'src/main.ts'],
       reporter: ['text', 'lcov', 'json-summary'],
       thresholds: { lines: 90, branches: 85, functions: 90, statements: 90 },
     },
