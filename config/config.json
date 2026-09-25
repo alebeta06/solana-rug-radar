@@ -1,0 +1,35 @@
+{
+  "detection": {
+    "launchBurst": {
+      "windowHours": 24,
+      "maxNormalLaunches": 10
+    },
+    "liquidityCollapse": {
+      "maxLiquidityUsd": "5",
+      "minHolders": 150,
+      "minAthMcapUsd": "200000"
+    },
+    "automation": {
+      "maxLiquiditySpreadUsd": "1.5",
+      "minMatchingTokens": 3
+    }
+  },
+  "rest": {
+    "baseUrl": "https://api.solami.dev",
+    "requestsPerSecond": 1,
+    "burst": 1,
+    "maxQueue": 500,
+    "timeoutMs": 10000,
+    "cache": {
+      "identityMaxEntries": 100000,
+      "securityTtlSeconds": 600,
+      "securityMaxEntries": 20000,
+      "devHistoryTtlSeconds": 60,
+      "devHistoryMaxEntries": 20000
+    },
+    "liquidityHistory": {
+      "maxMints": 50000,
+      "maxReadingsPerMint": 120
+    }
+  }
+}

@@ -1,0 +1,13 @@
+# One command: `docker compose up --build`
+# Phase 1 runs the replay: every captured frame in ./data goes through the normalization layer.
+# Later phases add the live ingestion, detector and dashboard services here.
+services:
+  radar:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data:ro
+      - ./config:/app/config:ro
+    restart: "no"
