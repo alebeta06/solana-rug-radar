@@ -24,12 +24,7 @@ const STARTS_TRACKING = /"type":"(?:token_create|meme|graduation)"/;
 const BLOCK_TIME = /"block_time":(\d+)/;
 const SOL = 'So11111111111111111111111111111111111111112';
 
-/**
- * The launchpad's own bonding-curve pools. After graduation the money trades in the new pool; the
- * curve pool can keep SOL nobody can trade against (meteora_dbc leaves ~11–14 SOL), and summing it
- * hid drained tokens from the phase-3 metric. "Tradable" liquidity excludes them once graduated.
- */
-export const CURVE_DEXES = new Set(['pumpfun', 'meteora_dbc', 'raydium_launchpad']);
+export { CURVE_DEXES } from '../state/token-state.js';
 
 export interface Capture {
   readonly lifecycle: readonly string[];

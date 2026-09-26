@@ -1,16 +1,23 @@
 /**
- * Entrypoint: ingestion (phase 2) feeding the memory (phase 3). Picks the origin, serves
- * /health (source + state), logs health lines periodically.
+ * Entrypoint: ingestion (phase 2) feeding the memory (phase 3) and the detector (phase 4). Picks
+ * the origin, serves /health (source + state + alerts), logs health lines periodically.
  *
  * Live: warm start from the persisted lifecycle log (last `state.warmStart.hours`), then the
  * stream; dev-history enrichment runs for real when SOLAMI_API_KEY is set. Replay: the REST
  * budget is only simulated, on event time.
+ *
+ * Detector: attached AFTER the warm start (history must not raise alerts). Live, its alerts and
+ * confirmed rugs go to the registry (data/alerts/, re-read at startup); replay only prints them.
  *
  * Origin: INGEST_SOURCE=live|replay; default live when SOLAMI_API_KEY is set, replay otherwise
  * (REPLAY_PATHS, comma-separated, default "data,samples"). Ctrl+C / SIGTERM: close the socket,
  * flush pending disk writes, exit.
  */
 import { loadConfig } from './config.js';
+import { summarizeDetector } from './detector/detector.js';
+import { createDetector, describeRecord } from './detector/factory.js';
+import { Registry } from './detector/registry.js';
+import type { DetectorRecord } from './detector/types.js';
 import { systemClock } from './core/time.js';
 import { createLiveSource, createReplaySource } from './ingest/factory.js';
 import { startHealthServer, summarizeHealth } from './ingest/health.js';
@@ -45,12 +52,24 @@ async function main(): Promise<void> {
     console.log(`[ingest] replay (no SOLAMI_API_KEY or INGEST_SOURCE=replay): ${paths.join(', ')}`);
   }
 
-  const getState = () => stateHealth(store, enricher);
+  // Live only: a replay must not write into (or read from) the live evidence log.
+  const registry = mode === 'live' ? new Registry(config.detection.registry.dir) : null;
+  const detector = createDetector(config, store, (record: DetectorRecord) => {
+    registry?.append(record);
+    console.log(describeRecord(record));
+  });
+  if (registry !== null) {
+    detector.load(registry.load(config.detection.registry.reloadDays));
+    console.log(`[detector] registry ${config.detection.registry.dir}: ${registry.health().loaded} record(s) reloaded`);
+  }
+
+  const getState = () => ({ ...stateHealth(store, enricher), detector: detector.stats(), registry: registry?.health() ?? null });
   const server = await startHealthServer(config.health.port, () => source.health(), systemClock, config.stream.staleAfterMs, getState);
   console.log(`[ingest] health on http://localhost:${config.health.port}/health`);
   const logTimer = setInterval(() => {
     console.log(summarizeHealth(source.health(), systemClock()));
     console.log(summarizeState(getState()));
+    console.log(summarizeDetector(detector.stats()));
   }, config.health.logEveryMs);
   const restTimer = live ? setInterval(() => enricher.tick(), 1000 / config.rest.requestsPerSecond) : undefined;
 
@@ -62,6 +81,7 @@ async function main(): Promise<void> {
     const events = await warmStart(config, store, files);
     console.log(`[state] warm start: ${events} events from ${files.length} file(s) in ${Date.now() - started} ms`);
   }
+  store.listen(detector);
 
   let stopping = false;
   const shutdown = (signal: string) => {
@@ -87,6 +107,7 @@ async function main(): Promise<void> {
   await new Promise((resolve) => server.close(resolve));
   console.log(summarizeHealth(source.health(), systemClock()));
   console.log(summarizeState(getState()));
+  console.log(summarizeDetector(detector.stats()));
   console.log('[ingest] stopped');
 }
 

@@ -40,7 +40,7 @@ describe('EnrichmentScheduler', () => {
     expect(s.pending).toBe(1);
     s.enqueue('c', 'm3', 'suspect', 7);
     expect(s.priorityOf('c')).toBe('suspect');
-    expect(s.take(10)).toEqual({ creator: 'c', mint: 'm3', priority: 'suspect', enqueuedAt: 0 });
+    expect(s.take(10)).toEqual({ creator: 'c', mint: 'm3', priority: 'suspect', enqueuedAt: 0, notBefore: 7 });
   });
 
   it('when full, discards the oldest request of the lowest class (counted)', () => {
@@ -70,5 +70,15 @@ describe('EnrichmentScheduler', () => {
     expect(s.take(50)).toBeNull();
     expect(s.take(51)).toBeNull(); // would be granted if the clock had been reset to 50
     expect(s.take(101)?.creator).toBe('b');
+  });
+
+  it('holds a request until notBefore without blocking the ones behind it', () => {
+    const s = new EnrichmentScheduler({ maxPending: 10, maxWaitSeconds: 1800, requestsPerSecond: 1, burst: 1 });
+    s.enqueue('young', 'm1', 'new-creator', 0, 10);
+    s.enqueue('old', 'm2', 'new-creator', 0, 0);
+    expect(s.take(1)?.creator).toBe('old');
+    expect(s.take(5)).toBeNull(); // budget available, but "young" is not ready
+    expect(s.take(10)?.creator).toBe('young');
+    expect(s.pending).toBe(0);
   });
 });

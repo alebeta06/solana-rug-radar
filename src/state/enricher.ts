@@ -24,6 +24,8 @@ export interface EnricherOptions {
   /** Below this, a graduation does not re-ask (the REST client caches dev-history this long anyway). */
   readonly minRefreshSeconds: number;
   readonly maxInflight: number;
+  /** A mint younger than this (block time) is not asked about yet: Solami would answer 404. */
+  readonly minTokenAgeSeconds: number;
 }
 
 export interface EnricherStats extends SchedulerStats {
@@ -58,12 +60,15 @@ export class Enricher {
     if (event.type === 'token_create') {
       const creator = this.store.creator(event.creator);
       if (creator === undefined) return;
-      if (creator.serial) this.request(creator, event.mint, 'suspect', this.options.suspectRepollSeconds);
-      else if (creator.restRequestedAt === null) this.request(creator, event.mint, 'new-creator', 0);
-      else this.request(creator, event.mint, 'known-creator', this.options.knownRefreshSeconds);
+      const born = secondsValue(event.blockTime);
+      if (creator.serial) this.request(creator, event.mint, 'suspect', this.options.suspectRepollSeconds, born);
+      else if (creator.restRequestedAt === null) this.request(creator, event.mint, 'new-creator', 0, born);
+      else this.request(creator, event.mint, 'known-creator', this.options.knownRefreshSeconds, born);
     } else if (event.type === 'graduation') {
       const creator = this.store.creator(event.creator);
-      if (creator !== undefined) this.request(creator, event.mint, 'graduation', this.options.minRefreshSeconds);
+      // meteora_dbc tokens graduate in the second they are born: age counts from the birth.
+      const born = creator?.launches.get(event.mint)?.createdAt ?? event.blockTime;
+      if (creator !== undefined) this.request(creator, event.mint, 'graduation', this.options.minRefreshSeconds, secondsValue(born));
     }
   }
 
@@ -94,11 +99,12 @@ export class Enricher {
     };
   }
 
-  private request(creator: CreatorState, mint: string, priority: Priority, minAgeSeconds: number): void {
+  /** `bornAt`: block time of `mint`'s creation (or the best known), for the minimum-age rule. */
+  private request(creator: CreatorState, mint: string, priority: Priority, minAgeSeconds: number, bornAt: number): void {
     const now = this.now();
     const last = creator.restRequestedAt;
     if (last !== null && now - secondsValue(last) < minAgeSeconds) return;
-    this.scheduler.enqueue(creator.creator, mint, priority, now);
+    this.scheduler.enqueue(creator.creator, mint, priority, now, bornAt + this.options.minTokenAgeSeconds);
   }
 
   /** Suspects are re-asked periodically even if they stop launching: the drain comes later. */
@@ -107,8 +113,8 @@ export class Enricher {
     this.lastSuspectSweep = now;
     for (const creator of this.store.creators.values()) {
       if (!creator.serial) continue;
-      const mint = latestMint(creator);
-      if (mint !== null) this.request(creator, mint, 'suspect', this.options.suspectRepollSeconds);
+      const latest = latestMint(creator);
+      if (latest !== null) this.request(creator, latest.mint, 'suspect', this.options.suspectRepollSeconds, latest.at);
     }
   }
 
@@ -134,11 +140,11 @@ export class Enricher {
   }
 }
 
-function latestMint(creator: CreatorState): string | null {
+function latestMint(creator: CreatorState): { mint: string; at: number } | null {
   let best: { mint: string; at: number } | null = null;
   for (const launch of creator.launches.values()) {
     const at = launch.createdAt === null ? -1 : secondsValue(launch.createdAt);
     if (best === null || at > best.at) best = { mint: launch.mint, at };
   }
-  return best?.mint ?? null;
+  return best;
 }

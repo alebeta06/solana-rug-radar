@@ -33,6 +33,7 @@ export function newToken(mint: string, at: UnixSeconds): TokenState {
     readings: [],
     peakLiquidityUsd: null,
     peakAt: null,
+    tradablePeakUsd: null,
     holders: null,
     athMcapUsd: null,
     firstSeen: at,
@@ -123,6 +124,10 @@ export function observePool(
   if (at > state.lastSeen) state.lastSeen = at;
   if (reading !== null && (state.latest === null || compareReadings(reading, state.latest) > 0)) {
     state.latest = reading;
+    // The venue that TRADES the pool wins over whoever announced it: pump.fun's migration emits
+    // `pool_create` with dex "pumpfun" for what then trades as "pumpswap". Tied to the latest
+    // reading, so it stays order-independent.
+    state.dex = dex;
   }
 }
 
@@ -140,8 +145,48 @@ function dropStalestPool(token: TokenState): void {
   if (stalest !== undefined) token.pools.delete(stalest.pool);
 }
 
-/** Stream view of liquidity now: sum of each pool's latest reading, else the last curve reading. */
+/**
+ * The launchpads' own bonding-curve pools. After graduation the money trades in the new pool, but
+ * the curve pool can keep reserves nobody can trade against: meteora_dbc leaves ~11–14 SOL there.
+ * Summing it made 486 drained tokens of the 2026-09-26 capture look alive
+ * (docs/ANALISIS_calibracion.md §0).
+ */
+export const CURVE_DEXES: ReadonlySet<string> = new Set(['pumpfun', 'meteora_dbc', 'raydium_launchpad']);
+
+/**
+ * Liquidity a trader can actually sell into: sum of the latest reading of each NON-curve pool.
+ * Only defined once graduated (before that, the curve IS the market); null if no such pool has a
+ * priced reading yet.
+ */
+export function tradableLiquidityUsd(token: TokenState): Decimal | null {
+  if (token.stage !== 'graduated') return null;
+  let total: Decimal | null = null;
+  for (const { dex, latest } of token.pools.values()) {
+    if (latest === null || (dex !== null && CURVE_DEXES.has(dex))) continue;
+    total = total === null ? latest.liquidityUsd : total.add(latest.liquidityUsd);
+  }
+  return total;
+}
+
+/**
+ * Raises the tradable peak with one pool reading: the max single reading of any non-curve pool.
+ * A max is order-independent (a sum over pools "at the time" is not: it depends on which reading
+ * of each pool arrived first), and multi-pool tokens are rare enough not to matter.
+ */
+export function raiseTradablePeak(token: TokenState, dex: string | null, reading: LiquidityReading): void {
+  if (dex !== null && CURVE_DEXES.has(dex)) return;
+  if (token.tradablePeakUsd === null || reading.liquidityUsd.gt(token.tradablePeakUsd)) token.tradablePeakUsd = reading.liquidityUsd;
+}
+
+/**
+ * Stream view of liquidity now. Graduated: tradable liquidity (curve pools excluded). Otherwise:
+ * sum of each pool's latest reading, else the last curve reading.
+ */
 export function currentLiquidityUsd(token: TokenState): Decimal | null {
+  if (token.stage === 'graduated') {
+    const tradable = tradableLiquidityUsd(token);
+    if (tradable !== null) return tradable;
+  }
   let total: Decimal | null = null;
   for (const { latest } of token.pools.values()) {
     if (latest !== null) total = total === null ? latest.liquidityUsd : total.add(latest.liquidityUsd);
@@ -165,7 +210,8 @@ export function latestRestReading(token: TokenState): LiquidityReading | null {
 export function outcomeOf(token: TokenState): TokenOutcome {
   return {
     stage: token.stage,
-    peakLiquidityUsd: token.peakLiquidityUsd,
+    // Graduated: the same (tradable) basis as lastLiquidityUsd, or the two would not be comparable.
+    peakLiquidityUsd: (token.stage === 'graduated' ? token.tradablePeakUsd : null) ?? token.peakLiquidityUsd,
     lastLiquidityUsd: currentLiquidityUsd(token),
     restLiquidityUsd: latestRestReading(token)?.liquidityUsd ?? null,
     holders: token.holders,

@@ -72,6 +72,12 @@ export interface TokenState {
   peakLiquidityUsd: Decimal | null;
   /** When the peak was seen (earliest, on ties). */
   peakAt: UnixSeconds | null;
+  /**
+   * Peak of TRADABLE liquidity: max reading of any non-curve pool (`raiseTradablePeak`). A
+   * confirmed rug is measured against this, never against `peakLiquidityUsd` (which also counts
+   * the curve and Solami's REST figure).
+   */
+  tradablePeakUsd: Decimal | null;
   /** From dev-history. */
   holders: number | null;
   athMcapUsd: Decimal | null;
@@ -83,7 +89,7 @@ export interface TokenState {
 export interface TokenOutcome {
   readonly stage: TokenStage;
   readonly peakLiquidityUsd: Decimal | null;
-  /** Stream view: sum of the pools' latest readings (or the last curve reading). */
+  /** Stream view (`currentLiquidityUsd`): tradable pools once graduated, else the curve. */
   readonly lastLiquidityUsd: Decimal | null;
   /** Solami's view (dev-history), when it was asked. */
   readonly restLiquidityUsd: Decimal | null;

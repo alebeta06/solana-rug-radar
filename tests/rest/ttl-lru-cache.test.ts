@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Decimal } from '../../src/core/schema.js';
 import { unixMillis } from '../../src/core/time.js';
-import { LiquidityHistory } from '../../src/rest/liquidity-history.js';
 import { TtlLruCache } from '../../src/rest/ttl-lru-cache.js';
 
 function manualClock(start = 1_790_000_000_000) {
@@ -44,33 +42,5 @@ describe('TtlLruCache', () => {
   it('validates options', () => {
     expect(() => new TtlLruCache({ maxEntries: 0, ttlMs: 1 })).toThrow(RangeError);
     expect(() => new TtlLruCache({ maxEntries: 1, ttlMs: 0 })).toThrow(RangeError);
-  });
-});
-
-describe('LiquidityHistory', () => {
-  const reading = (ms: number, usd: string) => ({
-    observedAt: unixMillis(ms),
-    liquidityUsd: new Decimal(usd),
-    holders: 700,
-  });
-
-  it('keeps readings in order, bounded per mint', () => {
-    const history = new LiquidityHistory({ maxMints: 10, maxReadingsPerMint: 2 });
-    history.record('M', reading(1_790_000_000_000, '250000'));
-    history.record('M', reading(1_790_000_060_000, '1297.98'));
-    history.record('M', reading(1_790_000_120_000, '2.96'));
-    expect(history.readings('M').map((r) => r.liquidityUsd.toString())).toEqual(['1297.98', '2.96']);
-    expect(history.readings('unknown')).toEqual([]);
-  });
-
-  it('bounds the number of mints', () => {
-    const history = new LiquidityHistory({ maxMints: 1, maxReadingsPerMint: 5 });
-    history.record('A', reading(1_790_000_000_000, '1'));
-    history.record('B', reading(1_790_000_000_000, '1'));
-    expect(history.readings('A')).toEqual([]);
-  });
-
-  it('validates options', () => {
-    expect(() => new LiquidityHistory({ maxMints: 1, maxReadingsPerMint: 0 })).toThrow(RangeError);
   });
 });

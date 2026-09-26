@@ -309,3 +309,11 @@ Detalle y acciones para la fase 4 en `CLAUDE.md`, sección "Pendiente para la fa
   - No reproduzco los 1.044 descartes exactos: la simulación no tiene latencia real ni 404.
   - La señal principal **no necesita REST**. Si la fase 4 lo usa para creadores nuevos, primero
     hay que limitar esas re-consultas.
+
+## 8. Fase 4: el detector reproduce este análisis
+
+`node --expose-gc dist/calibration/validate.js 20260926` pasa la noche entera por el detector
+real. Roja: 431 / 422 y los mismos percentiles de aviso. Ámbar: 436 / 360 (aquí, 435 / 359).
+Rugs: 1.214 frente a 1.196, con la diferencia explicada caso a caso en `docs/RESUMEN_Fase_4.md`
+§8. La primera validación no cuadraba y destapó un fallo del store: el pool AMM de pump.fun,
+anunciado como `pumpfun`, se trataba como pool de curva.

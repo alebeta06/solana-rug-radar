@@ -22,7 +22,6 @@ export function createRestClient(config: AppConfig, clock: Clock = systemClock):
     timeoutMs: r.timeoutMs,
     devHistoryTokenLimit: r.devHistoryTokenLimit,
     cache: r.cache,
-    liquidityHistory: r.liquidityHistory,
     bucket: new TokenBucket({ capacity: r.burst, refillPerSecond: r.requestsPerSecond, maxQueue: r.maxQueue }, clock),
     clock,
   });
@@ -61,6 +60,7 @@ export function createEnricher(
       knownRefreshSeconds: e.knownRefreshMinutes * 60,
       minRefreshSeconds: config.rest.cache.devHistoryTtlSeconds,
       maxInflight: e.maxInflight,
+      minTokenAgeSeconds: e.minTokenAgeSeconds,
     },
     now,
   );

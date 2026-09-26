@@ -127,7 +127,7 @@ async function main(): Promise<void> {
   const now = () => (store.watermark === null ? 0 : secondsValue(store.watermark));
   const enricher = new Enricher(store, scheduler, null, {
     suspectRepollSeconds: e.suspectRepollMinutes * 60, knownRefreshSeconds: e.knownRefreshMinutes * 60,
-    minRefreshSeconds: config.rest.cache.devHistoryTtlSeconds, maxInflight: e.maxInflight,
+    minRefreshSeconds: config.rest.cache.devHistoryTtlSeconds, maxInflight: e.maxInflight, minTokenAgeSeconds: e.minTokenAgeSeconds,
   }, now);
 
   const replay = mergedReplay(capture, mints, config.stream.dedupWindowPerType);

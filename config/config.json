@@ -5,13 +5,19 @@
       "maxNormalLaunches": 10
     },
     "liquidityCollapse": {
-      "maxLiquidityUsd": "5",
-      "minHolders": 150,
-      "minAthMcapUsd": "200000"
+      "minPeakUsd": "1000",
+      "maxLiquidityUsd": "5"
     },
-    "automation": {
-      "maxLiquiditySpreadUsd": "1.5",
-      "minMatchingTokens": 3
+    "fingerprint": {
+      "minSol": "84.9",
+      "maxSol": "85.1"
+    },
+    "liveResolveMinutes": 60,
+    "maxRememberedMints": 200000,
+    "maxRememberedCreators": 100000,
+    "registry": {
+      "dir": "data/alerts",
+      "reloadDays": 7
     }
   },
   "rest": {
@@ -27,16 +33,12 @@
       "securityMaxEntries": 20000,
       "devHistoryTtlSeconds": 60,
       "devHistoryMaxEntries": 20000
-    },
-    "liquidityHistory": {
-      "maxMints": 50000,
-      "maxReadingsPerMint": 120
     }
   },
   "stream": {
     "url": "wss://ws.solami.dev/data/subscribe",
     "chain": "solana",
-    "types": ["token_create", "pool_create", "graduation", "liquidity", "transfer", "swap", "meme"],
+    "types": ["token_create", "pool_create", "graduation", "liquidity", "swap", "meme"],
     "backfill": 200,
     "dedupWindowPerType": 1000,
     "staleAfterMs": 30000,
@@ -81,6 +83,7 @@
     "maxWaitMinutes": 30,
     "maxInflight": 2,
     "suspectRepollMinutes": 10,
+    "minTokenAgeSeconds": 10,
     "knownRefreshMinutes": 360
   },
   "health": {

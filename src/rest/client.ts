@@ -14,7 +14,6 @@ import type { z } from 'zod';
 import { formatIssues } from '../core/schema.js';
 import { parseJsonLossless } from '../core/json.js';
 import { systemClock, type Clock } from '../core/time.js';
-import { LiquidityHistory, type LiquidityHistoryOptions } from './liquidity-history.js';
 import { devHistorySchema, securitySchema } from './schemas.js';
 import type { TokenBucket } from './token-bucket.js';
 import { TtlLruCache } from './ttl-lru-cache.js';
@@ -35,7 +34,6 @@ export interface RestClientOptions {
   /** `limit` for the dev endpoint: without it Solami returns only 20 of the creator's tokens. */
   readonly devHistoryTokenLimit: number;
   readonly cache: RestCacheOptions;
-  readonly liquidityHistory: LiquidityHistoryOptions;
   readonly bucket: TokenBucket;
   readonly fetch?: typeof fetch;
   readonly clock?: Clock;
@@ -63,7 +61,6 @@ const DEV_HISTORY_PATH = '/data/token/dev';
 const CHAIN = 'solana';
 
 export class SolamiRestClient {
-  readonly liquidity: LiquidityHistory;
   private readonly identities: TtlLruCache<string, TokenIdentity>;
   private readonly security: TtlLruCache<string, TokenSecurity>;
   private readonly histories: TtlLruCache<string, CreatorHistory>;
@@ -87,7 +84,6 @@ export class SolamiRestClient {
       { maxEntries: cache.devHistoryMaxEntries, ttlMs: cache.devHistoryTtlSeconds * 1000 },
       this.clock,
     );
-    this.liquidity = new LiquidityHistory(options.liquidityHistory, this.clock);
   }
 
   /** Cached identity, if any request has revealed it. Never hits the network. */
@@ -147,11 +143,6 @@ export class SolamiRestClient {
           symbol: token.symbol,
         });
       }
-      this.liquidity.record(token.mint, {
-        observedAt: history.fetchedAt,
-        liquidityUsd: token.liquidityUsd,
-        holders: token.holders,
-      });
     }
     this.identities.set(queried.mint, queried);
   }

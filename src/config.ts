@@ -13,16 +13,25 @@ const positiveInt = z.int().positive();
 
 const configSchema = z.object({
   detection: z.object({
-    /** Signal 1 (primary): launches by one creator inside the window. Anomalous if > maxNormalLaunches. */
+    /**
+     * Launches by one creator inside the window. NOT an alert (1.0 % precision alone, see
+     * docs/ANALISIS_calibracion.md §4b): it only marks "serial" creators for the REST enricher.
+     */
     launchBurst: z.object({ windowHours: positiveInt, maxNormalLaunches: positiveInt }),
-    /** Signal 2 (confirmation): liquidity collapsed while holders stay high, after a real peak. */
-    liquidityCollapse: z.object({
-      maxLiquidityUsd: decimalString,
-      minHolders: positiveInt,
-      minAthMcapUsd: decimalString,
-    }),
-    /** Signal 3 (automation): final liquidity repeated across the same creator's tokens. */
-    automation: z.object({ maxLiquiditySpreadUsd: decimalString, minMatchingTokens: positiveInt }),
+    /**
+     * What counts as a CONFIRMED RUG (not an alert rule): a graduated token whose tradable
+     * liquidity (curve pools excluded) reached `minPeakUsd` and then fell to <= `maxLiquidityUsd`.
+     */
+    liquidityCollapse: z.object({ minPeakUsd: decimalString, maxLiquidityUsd: decimalString }),
+    /** The red alert's confirmation fingerprint: the creator's add is in this SOL band (420/422 were 84.99). */
+    fingerprint: z.object({ minSol: decimalString, maxSol: decimalString }),
+    /** Live precision: an alert with no confirmed rug after this long counts as unconfirmed. */
+    liveResolveMinutes: positiveInt,
+    /** Bounds of the detector's own memory (alerted mints, creators who drained a token). */
+    maxRememberedMints: positiveInt,
+    maxRememberedCreators: positiveInt,
+    /** Alerts and confirmed rugs, JSONL, live only; the last `reloadDays` are re-read at startup. */
+    registry: z.object({ dir: z.string().min(1), reloadDays: positiveInt }),
   }),
   rest: z.object({
     baseUrl: z.url(),
@@ -38,7 +47,6 @@ const configSchema = z.object({
       devHistoryTtlSeconds: positiveInt,
       devHistoryMaxEntries: positiveInt,
     }),
-    liquidityHistory: z.object({ maxMints: positiveInt, maxReadingsPerMint: positiveInt }),
   }),
   stream: z
     .object({
@@ -124,6 +132,12 @@ const configSchema = z.object({
     suspectRepollMinutes: positiveInt,
     /** A known, non-suspect creator's new launch re-asks only if the last ask is older than this. */
     knownRefreshMinutes: positiveInt,
+    /**
+     * Never ask about a mint younger than this (its block time): Solami answers 404 "no creation
+     * record" until it has indexed it. Measured live: 51/105 asked at 0–2 s got 404, all 51 got 200
+     * at 5–8 s.
+     */
+    minTokenAgeSeconds: positiveInt,
   }),
   health: z.object({
     port: z.int().min(0).max(65535),

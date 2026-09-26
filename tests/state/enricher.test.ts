@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { unixMillis } from '../../src/core/time.js';
 import type { CreatorHistory } from '../../src/rest/types.js';
 import { applyEvent, createEnricher } from '../../src/state/factory.js';
-import { graduation, newStore, realCreatorHistory, T0, testConfig, tokenCreate } from './helpers.js';
+import { graduation, newStore, realCreatorHistory, T0, testConfig as shippedConfig, tokenCreate } from './helpers.js';
+
+/** These tests are about who is asked and when the budget allows it; the minimum-age delay has its own tests. */
+const testConfig = () => {
+  const config = shippedConfig();
+  return { ...config, enrichment: { ...config.enrichment, minTokenAgeSeconds: 0 } };
+};
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -95,5 +101,44 @@ describe('Enricher (live)', () => {
       enricher.tick();
     }
     expect(pending).toHaveLength(config.enrichment.maxInflight);
+  });
+});
+
+describe('Enricher: minimum token age (Solami 404s a mint it has not indexed yet)', () => {
+  it('does not ask about a mint younger than minTokenAgeSeconds, then asks once it is old enough', async () => {
+    const store = newStore();
+    const history = realCreatorHistory(T0);
+    const calls: string[] = [];
+    const fetcher = { getCreatorHistory: (mint: string) => (calls.push(mint), Promise.resolve(history)) };
+    const config = shippedConfig();
+    const age = config.enrichment.minTokenAgeSeconds;
+    expect(age).toBeGreaterThanOrEqual(10);
+    let now = T0 * 1000;
+    const enricher = createEnricher(config, store, fetcher, () => unixMillis(now));
+    const mint = history.tokens[0]!.mint;
+    applyEvent(store, enricher, tokenCreate(mint, history.creator, T0));
+    for (let s = 0; s < age; s += 1) {
+      enricher.tick();
+      now += 1000;
+    }
+    expect(calls).toEqual([]); // every tick before T0 + age: nothing sent, no budget spent
+    enricher.tick(); // now = T0 + age
+    await settle();
+    expect(calls).toEqual([mint]);
+  });
+
+  it('counts a graduation\'s age from the token\'s birth, not from the graduation', () => {
+    const store = newStore();
+    const config = shippedConfig();
+    const enricher = createEnricher(config, store, null);
+    const feed = (e: Parameters<typeof applyEvent>[2]) => {
+      applyEvent(store, enricher, e);
+      enricher.tick();
+    };
+    feed(tokenCreate('OLD', 'CG', T0));
+    feed(tokenCreate('X', 'other', T0 + 3600)); // an hour later: the new-creator ask for CG went out
+    feed(graduation('OLD', 'CG', T0 + 3601)); // born an hour ago: no wait needed
+    feed(tokenCreate('Y', 'other2', T0 + 3602));
+    expect(enricher.stats().dispatched.graduation).toBe(1);
   });
 });

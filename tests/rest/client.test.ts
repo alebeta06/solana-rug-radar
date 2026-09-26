@@ -86,7 +86,6 @@ function setup(responses: (() => Response | Promise<Response>)[], bucket?: Token
       devHistoryTtlSeconds: 60,
       devHistoryMaxEntries: 100,
     },
-    liquidityHistory: { maxMints: 100, maxReadingsPerMint: 10 },
     bucket: bucket ?? new TokenBucket({ capacity: 100, refillPerSecond: 100, maxQueue: 100 }, clock),
     fetch: fetchMock,
     clock,
@@ -180,18 +179,12 @@ describe('SolamiRestClient', () => {
     expect(history.tokens.find((t) => t.mint === 'MINT_C')).toMatchObject({ athUsd: null, athMcapUsd: null });
   });
 
-  it('refetches after the short TTL and records a liquidity time series', async () => {
+  it('refetches after the short TTL', async () => {
     const { client, fetchMock, advance } = setup([ok(devHistory('250000.5')), ok(devHistory('2.96'))]);
     await client.getCreatorHistory('MINT_A');
     advance(60_000);
     await client.getCreatorHistory('MINT_A');
     expect(fetchMock).toHaveBeenCalledTimes(2);
-
-    const series = client.liquidity.readings('MINT_A');
-    expect(series.map((r) => [millisValue(r.observedAt) - START, r.liquidityUsd.toString()])).toEqual([
-      [0, '250000.5'],
-      [60_000, '2.96'],
-    ]);
   });
 
   it('shares one request between concurrent calls for the same mint', async () => {

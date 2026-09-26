@@ -35,11 +35,25 @@ import { launchesInWindow, mergeOutcome, newCreator, recordLaunch, seen } from '
 import { timePosition, txPosition } from './order.js';
 import { PendingEvents } from './pending.js';
 import { QuotePrices, toUnits, WRAPPED_SOL } from './quote-prices.js';
-import { addReading, earliest, newToken, observePool, outcomeOf, raiseStage, touch } from './token-state.js';
+import { addReading, earliest, newToken, observePool, outcomeOf, raiseStage, raiseTradablePeak, touch } from './token-state.js';
 import { STAGE_RANK, type CreatorState, type LiquidityReading, type TokenStage, type TokenState } from './types.js';
 
 type TrackedEvent = TokenCreateEvent | PoolCreateEvent | GraduationEvent | LiquidityEvent | MemeEvent | SwapEvent;
 type PairEvent = PoolCreateEvent | LiquidityEvent;
+
+/**
+ * What the detector (phase 4) needs to hear, called AFTER the store applied the event, including
+ * events released from the pending buffer (so an early `liquidity` is not missed). The store
+ * decides nothing about alerts.
+ */
+export interface StoreListener {
+  /** A liquidity event was applied to a token we follow. */
+  liquidity(token: TokenState, event: LiquidityEvent): void;
+  /** A `graduation` event was applied. */
+  graduation(token: TokenState, event: GraduationEvent): void;
+  /** A pool reading (liquidity or swap) changed what the token's liquidity may be. */
+  poolReading(token: TokenState, event: LiquidityEvent | SwapEvent): void;
+}
 
 export interface StateStoreOptions {
   readonly state: AppConfig['state'];
@@ -70,6 +84,7 @@ export class StateStore {
   private readonly pending: PendingEvents<PairEvent>;
   private watermarkValue: UnixSeconds | null = null;
   private lastSweep: UnixSeconds | null = null;
+  private listener: StoreListener | null = null;
   private readonly counters = {
     launchesSeen: 0,
     graduationsSeen: 0,
@@ -81,6 +96,11 @@ export class StateStore {
 
   constructor(private readonly options: StateStoreOptions) {
     this.pending = new PendingEvents(options.state.pending);
+  }
+
+  /** One listener (the detector). Attach AFTER the warm start: history must not raise alerts. */
+  listen(listener: StoreListener | null): void {
+    this.listener = listener;
   }
 
   get watermark(): UnixSeconds | null {
@@ -201,6 +221,7 @@ export class StateStore {
     token.graduationPool ??= e.pool;
     observePool(token, e.pool, e.dex, e.blockTime, null, this.options.state.maxPoolsPerToken);
     this.release(e.mint);
+    this.listener?.graduation(token, e);
   }
 
   private markGraduated(token: TokenState, at: UnixSeconds): void {
@@ -228,6 +249,7 @@ export class StateStore {
       ? { mint: e.quoteMint, reserve: e.quoteReserve, decimals: e.quoteDecimals }
       : { mint: e.baseMint, reserve: e.baseReserve, decimals: e.baseDecimals };
     this.addPoolReading(token, e, quote);
+    this.listener?.liquidity(token, e);
   }
 
   /**
@@ -264,6 +286,8 @@ export class StateStore {
       this.addReading(token, reading);
     }
     observePool(token, e.pool, e.dex, e.blockTime, reading, this.options.state.maxPoolsPerToken);
+    if (reading !== null) raiseTradablePeak(token, e.dex, reading);
+    this.listener?.poolReading(token, e);
   }
 
   private addReading(token: TokenState, reading: LiquidityReading): void {

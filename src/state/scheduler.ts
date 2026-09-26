@@ -15,7 +15,9 @@
  *                    launches made before we started listening (fixes the cold start).
  *   4. known-creator a known, non-suspect creator launched again; asked only if the last answer
  *                    is old. Our own stream already counts this launch.
- * FIFO inside a class. A creator already waiting is upgraded, never queued twice. When full, the
+ * FIFO inside a class, but a request is not sent before its `notBefore` (a mint Solami has not
+ * indexed yet answers 404): a not-ready request is skipped, it does not block the ones behind it.
+ * A creator already waiting is upgraded, never queued twice. When full, the
  * oldest request of the lowest class is discarded; a request that waited `maxWaitSeconds` is
  * discarded when reached. Both are counted as "discarded by budget".
  *
@@ -31,6 +33,8 @@ export interface EnrichmentRequest {
   readonly mint: string;
   readonly priority: Priority;
   readonly enqueuedAt: number;
+  /** Not dispatched before this time (seconds). */
+  readonly notBefore: number;
 }
 
 export interface SchedulerOptions {
@@ -78,16 +82,16 @@ export class EnrichmentScheduler {
     return PRIORITIES.find((p) => this.queues[p].has(creator));
   }
 
-  enqueue(creator: string, mint: string, priority: Priority, now: number): void {
+  enqueue(creator: string, mint: string, priority: Priority, now: number, notBefore = now): void {
     const current = this.priorityOf(creator);
     if (current !== undefined) {
       if (PRIORITIES.indexOf(priority) >= PRIORITIES.indexOf(current)) return;
       const existing = this.queues[current].get(creator);
       this.queues[current].delete(creator);
-      this.queues[priority].set(creator, { creator, mint, priority, enqueuedAt: existing?.enqueuedAt ?? now });
+      this.queues[priority].set(creator, { creator, mint, priority, enqueuedAt: existing?.enqueuedAt ?? now, notBefore });
       return;
     }
-    this.queues[priority].set(creator, { creator, mint, priority, enqueuedAt: now });
+    this.queues[priority].set(creator, { creator, mint, priority, enqueuedAt: now, notBefore });
     if (this.pending > this.options.maxPending) this.discardLowest();
   }
 
@@ -97,12 +101,14 @@ export class EnrichmentScheduler {
     if (this.tokens < 1) return null;
     for (const priority of PRIORITIES) {
       for (const [creator, request] of this.queues[priority]) {
-        this.queues[priority].delete(creator);
         const waited = now - request.enqueuedAt;
         if (waited > this.options.maxWaitSeconds) {
+          this.queues[priority].delete(creator);
           this.discardedStale[priority] += 1;
           continue;
         }
+        if (request.notBefore > now) continue; // too young to ask about; keep its place
+        this.queues[priority].delete(creator);
         this.tokens -= 1;
         this.dispatched[priority] += 1;
         this.totalWait[priority] += waited;

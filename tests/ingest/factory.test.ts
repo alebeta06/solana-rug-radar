@@ -29,8 +29,8 @@ describe('factory (config → sources)', () => {
     await source.close();
   });
 
-  it('the shipped config subscribes to the 7 types the detector needs', () => {
-    expect(base.stream.types).toEqual(['token_create', 'pool_create', 'graduation', 'liquidity', 'transfer', 'swap', 'meme']);
+  it('the shipped config subscribes to the 6 types the detector needs (no transfer: ~18 GB/day, no signal uses it)', () => {
+    expect(base.stream.types).toEqual(['token_create', 'pool_create', 'graduation', 'liquidity', 'swap', 'meme']);
   });
 
   it('refuses the live source without an API key', () => {

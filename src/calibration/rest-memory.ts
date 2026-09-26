@@ -73,10 +73,9 @@ async function main(): Promise<void> {
   const base = await settledHeap();
   // Entry counts, read through the private fields (measurement only).
   const counts = () => {
-    const c = client as unknown as { identities: { size: number }; histories: { size: number }; liquidity: { byMint: { size: number; entries: Map<string, { value: unknown[] }> } } };
-    let readings = 0;
-    for (const e of c.liquidity.byMint.entries.values()) readings += e.value.length;
-    return `identities ${c.identities.size}, histories ${c.histories.size}, liquidity mints ${c.liquidity.byMint.size}, readings ${readings}`;
+    // Phase 4 removed LiquidityHistory (no reader, ~662 MB after a night): only these caches remain.
+    const c = client as unknown as { identities: { size: number }; histories: { size: number } };
+    return `identities ${c.identities.size}, histories ${c.histories.size}`;
   };
   // First-time creators (new-creator + graduation + known-creator), then the suspect re-polls.
   const firstTime = dispatched['new-creator']! + dispatched.graduation! + dispatched['known-creator']!;

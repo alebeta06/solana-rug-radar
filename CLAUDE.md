@@ -16,28 +16,33 @@ creador. Sus endpoints son fotos; nosotros hacemos la película.
 1. ✅ Esqueleto, tipos, capa de normalización, cliente REST, Docker, CI
 2. ✅ Ingesta del WebSocket (reconexión, backfill, dedup, contrapresión, persistencia, salud)
 3. ✅ Máquina de estados por token / creador (memoria acotada, `src/state/`)
-4. Detector (las 3 señales de abajo)
+4. ✅ Detector (`src/detector/`): alertas roja/ámbar, rugs confirmados, registro JSONL
 5. Dashboard
 
-## Reglas de detección — validadas con datos reales. NO CAMBIARLAS.
+## Reglas de detección (fase 4) — salen de la calibración, NO del prompt original
 
-Observado en mainnet: un creador con **48 tokens en 12 h**, otro con **96 en 8h50m**; creadores
-legítimos de control: **1 token cada uno**. Los tokens de los operadores colapsan a
-`liquidity_usd` de **$1–5** conservando **150–800 holders**, tras máximos de **$200k–350k** de
-market cap. La liquidez final se repite casi al céntimo entre tokens del mismo creador
-(1297.98, 1297.64, 1296.82, 1298.07): huella de automatización.
+Fuente: `docs/ANALISIS_calibracion.md` (captura nocturna del 2026-09-26, 10,3 h). El detector
+completo pasado por esa captura las reproduce (`src/calibration/validate.ts`). No cambiarlas sin
+volver a medir.
 
-Señales, por peso:
-1. **Principal** — nº de tokens lanzados por el creador en 24 h (>10 anómalo; 48/96 vs 1/1/1).
-2. **Confirmatoria** — colapso de `liquidity_usd` con holders altos. Es un EVENTO en el tiempo:
-   hace falta el histórico de lecturas (`LiquidityHistory`), no solo el último valor, para
-   distinguir "nació con poca liquidez" de "tenía y la perdió".
-3. **Automatización** — liquidez final repetida entre tokens del mismo creador, tolerancia estrecha.
-
-**DESCARTADO con datos:** la velocidad de graduación NO sirve (dos tokens legítimos graduaron en 0 s).
-
-Umbrales en `config/config.json`, NUNCA en la lógica. Solo "> 10 lanzamientos / 24 h" viene
-dado; los demás son los rangos observados, a calibrar en la fase 4.
+- **ROJA `creator-adds-liquidity`**: `liquidity` add con `provider` = creador del token. Sin
+  umbral. 97,9 % (422/431, 431 wallets); aviso p5 189 s, p10 322 s, p50 485 s.
+- **ÁMBAR `repeat-rugger`**: al GRADUAR un token, su creador ya tiene un rug confirmado de otro
+  token con hora anterior. 82,5 % (359/435); aviso p50 129 s.
+- Cada alerta lleva la precisión de SU regla (`CONFIDENCE` en `detector.ts`); nunca se
+  promedian. Juntas: 90,2 % y 65,3 % de recall (dato del detector, no de una alerta).
+- **84,99 SOL**: huella de confirmación en la alerta roja (`detection.fingerprint`), no regla.
+- **Rug confirmado** (no es alerta): token graduado cuya liquidez NEGOCIABLE llegó a
+  `liquidityCollapse.minPeakUsd` ($1.000) y bajó a ≤ `maxLiquidityUsd` ($5). Mecanismos:
+  creator-pull, migration-pull, dev-dump, sell-off, third-party-remove.
+- **Liquidez negociable**: excluye los pools de curva (`CURVE_DEXES` en `token-state.ts`) tras
+  graduar. El dex de un pool es el del evento de su última lectura (pump.fun anuncia su pool AMM
+  con `pool_create dex=pumpfun`: con "el primer dex visto" daba 30 rugs falsos).
+- **No ve** (limitación declarada): dev dumps y retiradas de liquidez de migración de creadores
+  sin rug previo (~35 % de los rugs de pool). El evento ES el vaciado.
+- **Descartadas con datos**: >10 lanzamientos/24 h sola (1,0 %; `launchBurst` queda solo para
+  priorizar REST), proporción de ventas (reflejo de la roja; se invierte), liquidez final
+  repetida (la final es ~0), reutilización de nombres, `bundlers_count`, velocidad de graduación.
 
 ## Trampas de datos (todas verificadas en capturas reales, 2026-09-24)
 
@@ -94,7 +99,7 @@ dado; los demás son los rangos observados, a calibrar en la fase 4.
     del grupo "creador aporta y retira"). Sí refleja vaciados por ventas. Tampoco cuenta a veces
     el pool de pumpswap que abre el creador. Detalle: `docs/ANALISIS_calibracion.md` §5.
 21. Tras migrar, meteora_dbc deja ~11–14 SOL en el pool de CURVA que nadie puede negociar. La
-    liquidez de un graduado debe excluir los pools de curva (ver "Pendiente para la fase 4").
+    liquidez de un graduado excluye los pools de curva (liquidez negociable, fase 4).
 
 ## Endpoints
 
@@ -209,47 +214,41 @@ admite el servidor una lista larga de mints y si permite actualizarla sin recone
 | Security | authorities, extensions, taxes | mint | ~10 min |
 | Historial | dev-history (tokens_launched, liquidity_usd, holders) | **creator** | ~60 s |
 
-Una respuesta de dev-history rellena la identidad de TODOS los tokens del creador y añade una
-lectura de liquidez por token a `LiquidityHistory`. Peticiones concurrentes iguales se comparten;
+Una respuesta de dev-history rellena la identidad de TODOS los tokens del creador. (`LiquidityHistory`
+se eliminó en la fase 4: nadie la leía y retenía ~662 MB tras una noche.) Peticiones concurrentes iguales se comparten;
 tras esperar turno en la cola se re-consulta la caché y, si hay acierto, se devuelve el turno (`refund`).
 
-## Pendiente para la fase 4 (medido el 2026-09-26 sobre la captura nocturna, NO arreglado)
+## Detector (fase 4, `src/detector/`)
 
-Salió del `/health` tras una noche (heap 668 MB, RSS 1.082 MB, 1.170 REST 404, 1.044
-`new-creator` caducados, espera media 283 s). Detalle y método en `docs/ANALISIS_calibracion.md` §7.
+- El store avisa al detector (`StoreListener`: liquidity, graduation, poolReading) DESPUÉS de
+  aplicar cada evento, también los liberados del búfer de pendientes. El listener se engancha
+  tras el arranque en caliente: la historia no dispara alertas.
+- Alertas y rugs son registros estructurados (`types.ts`). Una alerta por nivel y token, siempre.
+- **Registro** (`registry.ts`): en vivo, `data/alerts/detector-YYYYMMDD.jsonl`; al arrancar se
+  releen `registry.reloadDays` (7). Da dedup entre reinicios, la memoria de la ámbar (los dev
+  dumps no están en el ciclo de vida) y la precisión en vivo. Un replay nunca escribe ahí.
+- **Precisión en vivo** (`/health` → `state.detector`): confirmada, sin confirmar pasados
+  `liveResolveMinutes` (60; un rug posterior la voltea), abierta. En tiempo de evento.
+- Memoria tras la noche: store + detector 82 MB; cachés REST 88 MB (antes 662 MB).
 
-1. **Memoria: la causa es `LiquidityHistory` (caché REST), no el store.** El store retiene
-   84–88 MB al final de la noche (replay con GC forzado, con y sin arranque en caliente) y crece
-   ~7 MB/h solo por creadores (retención 24 h: debería estabilizarse en ~170 MB). En cambio, cada
-   re-consulta de un serial añade UNA lectura por cada token que lista dev-history (hasta 100):
-   con la mezcla de peticiones de la noche (18.777 re-consultas) el cliente REST retiene
-   1,83 M lecturas ≈ **662 MB** (sintético: respuestas con la forma real, `rest-memory.ts`).
-   **No se estabiliza** hasta el tope (50.000 mints × 120 lecturas ≈ 6 M, ~2 GB). Opciones:
-   no guardar lectura si el valor no cambió, bajar `maxReadingsPerMint`, o no re-consultar
-   seriales inactivos (punto 3).
-2. **Los 404 son "demasiado pronto", no creadores sin registro.** Cuerpo:
-   `no creation record for <mint>`. Probado en vivo (105 tokens recién vistos): 51 dan 404 a
-   0–2 s del evento y **los 51 dan 200 al reintentar a 5–8 s**; ninguno falla después. Sin
-   congestión serán MUCHOS más: en la simulación el 77 % de los `new-creator` saldrían < 10 s
-   tras la creación. Arreglo: no despachar hasta ≥ 10 s tras el `block_time` (o reintentar una
-   vez un 404 pasado ese margen, sin gastar más presupuesto).
-3. **El presupuesto se lo comen las re-consultas de seriales.** `sweepSuspects` re-consulta
-   cada 10 min a TODOS los seriales, incluidos los del día anterior (se retienen 7 días y el
-   arranque en caliente los carga) aunque ya no lancen. Replay con arranque en caliente:
-   27.804 peticiones (≈ las ~29.000 reales), **67 % re-consultas de sospechosos**, 421 seriales
-   (252 sin arranque en caliente). Espera `new-creator`: p50 36 s, p90 208 s. La señal
-   principal nueva (§1 del análisis) dispara sobre creadores NUEVOS y **no necesita REST**;
-   pero si la fase 4 usa REST para ellos, hay que limitar las re-consultas (p. ej. solo
-   seriales con lanzamientos en la ventana) antes de reordenar prioridades.
-4. **La métrica de liquidez del store suma el pool de curva muerto.** `currentLiquidityUsd`
-   suma todos los pools; tras migrar, meteora_dbc deja ~11–14 SOL en el pool de curva que nadie
-   puede negociar, y un token con el pool damm2 vaciado sigue pareciendo "vivo" (~1.300–1.700 $).
-   Es justo el patrón original (150–213 holders, Solami a $1–5). Para graduados hay que usar solo
-   pools que no sean de curva (`CURVE_DEXES` en `src/calibration/capture.ts`).
-5. **`npm run analyze` lee en orden de nombre**: `firehose-*` antes que `lifecycle-*`, así que
-   con swaps de horas la mayoría llegan antes que su token y se descartan. El análisis usa
-   `src/calibration/capture.ts` (intercala por `block_time`). Mismo riesgo en cualquier replay
-   de `data/live` completo.
+## Pendiente (medido el 2026-09-26; lo que NO se arregló en la fase 4)
+
+Arreglado en la fase 4: `LiquidityHistory` eliminado (memoria), no consultar un mint con
+< 10 s (`enrichment.minTokenAgeSeconds`; los 404 eran `no creation record`), liquidez negociable.
+
+1. **El presupuesto REST se lo comen las re-consultas de seriales** (NO tocado a propósito:
+   invalidaría la calibración). `sweepSuspects` re-consulta cada 10 min a TODOS los seriales,
+   incluidos los del día anterior (retenidos 7 días, cargados por el arranque en caliente).
+   Replay con arranque en caliente: 27.804 peticiones (≈ las ~29.000 reales), **67 %
+   re-consultas**, 421 seriales. Espera `new-creator`: p50 36 s, p90 208 s. Las alertas no
+   usan REST.
+2. **Cachés REST**: acotadas por nº de entradas, no por bytes; los historiales caducados no se
+   barren (TTL perezoso). Techo estimado ~200 MB al llenarse (20.000 historiales).
+3. **`maxPoolsPerToken` (8)** descarta el pool menos activo: un token con decenas de pools puede
+   perder el principal y dar un rug falso (1 caso en la noche).
+4. **`npm run analyze` y el replay de `npm start` leen en orden de nombre**: `firehose-*` antes
+   que `lifecycle-*`. Con swaps de horas, usar `src/calibration/capture.ts` (intercala por
+   `block_time`).
 
 ## Convenciones de código
 
@@ -270,5 +269,6 @@ npm run replay                      # comprobar data/*.jsonl contra el borde (ex
 npm run analyze                     # replay de data/live por la memoria (¡lee firehose antes que lifecycle!)
 node dist/calibration/extract.js 20260926 && node dist/calibration/report.js 20260926 --tradable
                                     # calibración: replay intercalado por block_time → docs/ANALISIS_calibracion.md
+node --expose-gc dist/calibration/validate.js 20260926   # la noche entera por el detector vs el análisis (~25 min)
 docker compose up --build           # ingesta en contenedor; health en localhost:8080/health
 ```

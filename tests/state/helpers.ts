@@ -107,17 +107,27 @@ export function poolCreate(mint: string, t: number, pool = `amm-${mint}`, revers
 export function liquidity(
   mint: string,
   t: number,
-  opts: { pool?: string; kind?: 'add' | 'remove'; quoteReserveSol: number; movedSol?: number; solPrice?: number; slot?: number; ix?: number },
+  opts: {
+    pool?: string;
+    kind?: 'add' | 'remove';
+    quoteReserveSol: number;
+    movedSol?: number;
+    solPrice?: number;
+    slot?: number;
+    ix?: number;
+    provider?: string;
+    dex?: string;
+  },
 ): SolamiEvent {
   const moved = opts.movedSol ?? 1;
   const price = opts.solPrice ?? 100;
   return event({
     ...tx(t, opts.slot, opts.ix),
     type: 'liquidity',
-    dex: 'pumpswap',
+    dex: opts.dex ?? 'pumpswap',
     pool: opts.pool ?? `amm-${mint}`,
     kind: opts.kind ?? 'add',
-    provider: 'lp',
+    provider: opts.provider ?? 'lp',
     base_mint: mint,
     quote_mint: SOL,
     base_amount: 1000,
@@ -131,7 +141,11 @@ export function liquidity(
   });
 }
 
-export function swap(mint: string, t: number, opts: { pool?: string; quoteReserveSol: number; slot?: number; reversed?: boolean }): SolamiEvent {
+export function swap(
+  mint: string,
+  t: number,
+  opts: { pool?: string; quoteReserveSol: number; slot?: number; reversed?: boolean; trader?: string; dex?: string },
+): SolamiEvent {
   const reserve = Math.round(opts.quoteReserveSol * 1e9);
   const sides = opts.reversed
     ? { mint: SOL, quote_mint: mint, base_reserve: reserve, quote_reserve: 5_000_000, base_amount: 1e8, quote_amount: 5000, base_decimals: 9, quote_decimals: 6 }
@@ -139,9 +153,9 @@ export function swap(mint: string, t: number, opts: { pool?: string; quoteReserv
   return event({
     ...tx(t, opts.slot),
     type: 'swap',
-    dex: 'pumpswap',
+    dex: opts.dex ?? 'pumpswap',
     pool: opts.pool ?? `amm-${mint}`,
-    trader: 'trader',
+    trader: opts.trader ?? 'trader',
     side: 'sell',
     ...sides,
     fee_amount: 0,

@@ -11,7 +11,8 @@ describe('config', () => {
   it('loads the shipped config with the validated thresholds', () => {
     const config = loadConfig({});
     expect(config.detection.launchBurst).toEqual({ windowHours: 24, maxNormalLaunches: 10 });
-    expect(config.detection.liquidityCollapse.maxLiquidityUsd).toEqual(new Decimal('5'));
+    expect(config.detection.liquidityCollapse).toEqual({ minPeakUsd: new Decimal('1000'), maxLiquidityUsd: new Decimal('5') });
+    expect(config.enrichment.minTokenAgeSeconds).toBeGreaterThanOrEqual(10);
     expect(config.rest.requestsPerSecond).toBe(1);
     expect(config.apiKey).toBeNull();
   });
