@@ -82,8 +82,9 @@ export function devHistorySchema(fetchedAt: UnixMillis) {
           created_time: secondsField,
           graduated: z.boolean(),
           graduated_time: secondsOrZeroAsNull,
-          ath_usd: decimalString,
-          ath_mcap_usd: decimalString,
+          // null for some tokens (9 of 52 real answers on 2026-09-26 failed on this).
+          ath_usd: decimalString.nullable(),
+          ath_mcap_usd: decimalString.nullable(),
           price_usd: decimalString,
           liquidity_usd: decimalString,
           holders: safeInt,

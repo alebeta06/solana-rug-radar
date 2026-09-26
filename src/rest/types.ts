@@ -55,8 +55,9 @@ export interface CreatorToken {
   readonly graduated: boolean;
   /** null when not graduated (raw value is 0, not a 1970 date). */
   readonly graduatedTime: UnixSeconds | null;
-  readonly athUsd: Decimal;
-  readonly athMcapUsd: Decimal;
+  /** null when Solami has no ATH for the token (seen in real answers). */
+  readonly athUsd: Decimal | null;
+  readonly athMcapUsd: Decimal | null;
   readonly priceUsd: Decimal;
   readonly liquidityUsd: Decimal;
   readonly holders: number;

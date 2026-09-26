@@ -87,6 +87,10 @@ dado; los demás son los rangos observados, a calibrar en la fase 4.
     (SOL p1–p99 = 115,96–121,62 $ en 10,5 h). Hay decenas de monedas de cotización, no solo SOL/USDC.
 18. Un swap drena un pool sin emitir `liquidity remove`: la liquidez real hay que leerla
     también de las reservas de los `swap` (`quote_reserve` tras la operación).
+19. dev-history: `ath_usd`/`ath_mcap_usd` pueden ser `null` (el esquema los acepta desde el
+    2026-09-26). Lista **como máximo 100 tokens** aunque se pida `limit=200`.
+20. `liquidity_usd` de Solami puede valorar el lado del TOKEN a un precio que ya no existe: un
+    pool con ~0 SOL puede salir con 20–45 k$ (trazado 1 caso; ver `docs/ANALISIS_calibracion.md`).
 
 ## Endpoints
 

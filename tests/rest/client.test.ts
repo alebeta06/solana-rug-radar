@@ -59,7 +59,7 @@ function devHistory(liquidityA = '2.963216863765038') {
     tokens: [
       token('MINT_A', liquidityA, { is_current: true }),
       token('MINT_B', '1297.98'),
-      token('MINT_C', '1297.64', { graduated: false, graduated_time: 0 }),
+      token('MINT_C', '1297.64', { graduated: false, graduated_time: 0, ath_usd: null, ath_mcap_usd: null }),
     ],
   });
 }
@@ -172,6 +172,12 @@ describe('SolamiRestClient', () => {
     const { client } = setup([ok(devHistory())]);
     const history = await client.getCreatorHistory('MINT_A');
     expect(history.tokens.find((t) => t.mint === 'MINT_C')?.graduatedTime).toBeNull();
+  });
+
+  it('accepts a null ATH (real answers have it; it used to reject the whole history)', async () => {
+    const { client } = setup([ok(devHistory())]);
+    const history = await client.getCreatorHistory('MINT_A');
+    expect(history.tokens.find((t) => t.mint === 'MINT_C')).toMatchObject({ athUsd: null, athMcapUsd: null });
   });
 
   it('refetches after the short TTL and records a liquidity time series', async () => {
