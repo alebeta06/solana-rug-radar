@@ -67,6 +67,20 @@ describe('ReplaySource', () => {
     expect(replay.health().malformed.invalidJson).toBe(1);
   });
 
+  it('does not split a line on U+2028/U+2029 inside a JSON string (node:readline does)', async () => {
+    const tokenCreate = SESSION.find((line) => line.includes('"type":"token_create"')) ?? '';
+    const withSeparators = tokenCreate.replace(/"name":"[^"]*"/, '"name":"MXM two lines"');
+    const file = join(dir, 'separators.jsonl');
+    writeFileSync(file, `${withSeparators}\r\n${SESSION[0]}`); // CRLF and no trailing newline too
+    const replay = new ReplaySource({ paths: [file], dedupWindowPerType: 1000, warn: () => {} });
+    const { items, done } = collect(replay.events());
+    await done;
+    rmSync(file);
+    expect(replay.health().malformed.invalidJson).toBe(0);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({ type: 'token_create', name: 'MXM two lines' });
+  });
+
   it('close() stops the replay early', async () => {
     const replay = new ReplaySource({ paths: [STREAM_SAMPLE_PATH], dedupWindowPerType: 1000 });
     const iterator = replay.events();
@@ -118,6 +132,20 @@ describe('health', () => {
     health = { ...base, state: 'reconnecting' };
     expect((await get('/health')).status).toBe(503);
     expect((await get('/other')).status).toBe(404);
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  it('serves what the memory knows under `state` when given', async () => {
+    const server = await startHealthServer(0, () => base, () => unixMillis(1_000_100), 30_000, () => ({ tokens: { tracked: 7 } }));
+    const port = (server.address() as AddressInfo).port;
+    const body = await new Promise<string>((resolve, reject) => {
+      request({ port, path: '/health' }, (res) => {
+        let text = '';
+        res.on('data', (c: Buffer) => (text += c.toString()));
+        res.on('end', () => resolve(text));
+      }).on('error', reject).end();
+    });
+    expect(JSON.parse(body)).toMatchObject({ healthy: true, frames: 10, state: { tokens: { tracked: 7 } } });
     await new Promise((resolve) => server.close(resolve));
   });
 });

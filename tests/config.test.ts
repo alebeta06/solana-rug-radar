@@ -32,6 +32,14 @@ describe('config', () => {
     expect(() => parseConfig(fileJson, { PERSIST_FIREHOSE_MAX_MB: '5GB' })).toThrow('PERSIST_FIREHOSE_MAX_MB');
   });
 
+  it('never forgets a creator inside the launch window (signal 1 would reset)', () => {
+    const json = fileJson as unknown as { state: Record<string, unknown> };
+    const bad = { ...json, state: { ...json.state, creatorRetentionHours: { default: 12, serial: 168 } } };
+    expect(() => parseConfig(bad, {})).toThrow('state.creatorRetentionHours.default');
+    const tooShort = { ...json, state: { ...json.state, creatorRetentionHours: { default: 24, serial: 168 }, tokenIdleMinutes: { curve: 60, graduated: 2000 } } };
+    expect(() => parseConfig(tooShort, {})).toThrow('creatorRetentionHours.default must cover');
+  });
+
   it('rejects a dedup window smaller than the backfill (reconnect duplicates would slip through)', () => {
     const json = fileJson as unknown as { stream: Record<string, unknown> };
     const bad = { ...json, stream: { ...json.stream, dedupWindowPerType: 100, backfill: 200 } };

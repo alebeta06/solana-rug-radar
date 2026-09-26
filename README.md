@@ -72,9 +72,13 @@ All thresholds live in [`config/config.json`](config/config.json), never in the 
             │  api_key redaction          │                         │
             └─────────────┬───────────────┘                         │
                           ▼                                         │
-  phase 3   ┌─────────────────────────────┐                         │
-            │ bounded state per token /   │◄────────────────────────┘
-            │ per creator                 │
+  phase 3 ✅ ┌─────────────────────────────┐  dev-history, by        │
+            │ StateStore (event time)     │  priority (Enricher) ◄──┘
+            │  token: stage, pools,       │  suspect > graduation >
+            │   liquidity readings, peak  │  new creator > known
+            │  creator: launches + outcome│
+            │  order-independent, bounded │
+            │  warm start from raw log    │
             └─────────────┬───────────────┘
   phase 4                 ▼  detector (3 signals, config thresholds)
   phase 5                 ▼  dashboard
@@ -94,8 +98,9 @@ All thresholds live in [`config/config.json`](config/config.json), never in the 
 - **Designed for the free plan.** One request per second, no burst, a bounded queue, and caches
   shaped by how the data changes: `dev-history` is keyed by creator, so one operator's 48 tokens
   cost one request.
-- **Bounded memory.** ~86,000 tokens are created per day, and the full stream carries ~970
-  events/s (measured: swaps and transfers are chain-wide). Every cache and queue has a size limit.
+- **Bounded memory.** ~40,000 tokens are launched per day (measured over a 10.5 h live
+  capture), and the full stream carries ~970 events/s (swaps and transfers are chain-wide).
+  Every cache, queue and state map has a size limit.
 - **One interface, two origins.** Live WebSocket and on-disk replay deliver events through the
   same `EventSource` interface and the same pipeline, so later phases cannot tell them apart:
   development and tests run without network, and replay is the fallback if stream access shrinks.
@@ -105,6 +110,21 @@ All thresholds live in [`config/config.json`](config/config.json), never in the 
 - **Backpressure drops by priority, it never "stops reading".** A firehose cannot be paused:
   the server would disconnect us and the reconnect backfill only recovers ~0.5 s of swaps. The
   bounded queue drops swaps/transfers first and token launches last, and counts every drop.
+- **Memory on event time, independent of arrival order.** The state's clock is the newest
+  event time seen (the watermark), so a 10-hour replay behaves like 10 hours live. Stages only
+  move forward, "time of" facts keep the earliest value, superseding readings compare on-chain
+  positions (slot, tx, instruction), launches are keyed by mint. Tests replay the same events
+  in shuffled orders and twice, and require an identical state.
+- **Tokens are forgotten, creators are not.** A token idle for 60 min on the curve (24 h once
+  graduated) is folded into a compact record on its creator and dropped. Creators are kept for
+  the whole 24 h window, and for 7 days once they crossed the launch-burst threshold.
+- **Liquidity includes swaps.** A pool drained by selling never emits a liquidity `remove`, so
+  reserves are also read from swaps of followed tokens (one reading per pool per minute).
+- **REST budget by priority.** dev-history is one request per creator: suspects (re-polled
+  every 10 min) > graduations > first launch of an unknown creator > known creators. Replayed
+  on the capture it needed ~0.4 req/s on average, with nothing discarded.
+- **Restart without amnesia.** On a live start the last 24 h of the persisted raw lifecycle log
+  are replayed into the state (the raw log *is* the persistence: no second format).
 - **Least privilege.** The API key only needs the *Data API* role.
 
 ## Run it
@@ -115,13 +135,16 @@ Requirements: Docker. For local development, Node.js 24+.
 docker compose up --build
 ```
 
-- **With an API key** (`SOLAMI_API_KEY` in `.env`): connects to the live Blur stream, starts
-  from the backfill and switches to realtime. The raw stream is saved to `./data/live/`.
+- **With an API key** (`SOLAMI_API_KEY` in `.env`): rebuilds its memory from the last 24 h
+  saved in `./data/live/` (if any), connects to the live Blur stream, starts from the backfill
+  and switches to realtime, enriching creators through the REST API at 1 req/s. The raw stream
+  is saved to `./data/live/`.
 - **Without a key:** replays `./data/` plus the redacted real samples bundled in the image,
-  through the same pipeline, then exits. A jury needs nothing else.
+  through the same pipeline and state (REST budget simulated), then exits. A jury needs nothing else.
 
-Health: <http://localhost:8080/health> (JSON; 200 healthy, 503 not) and a summary line in the
-logs every 30 s. Stop with Ctrl+C: it closes the socket, flushes pending disk writes and exits.
+Health: <http://localhost:8080/health> (JSON; 200 healthy, 503 not) and two summary lines in
+the logs every 30 s. Its `state` section shows what the memory knows: tokens followed (by
+stage), creators known and serial, graduations, REST requests sent / discarded by budget, heap. Stop with Ctrl+C: it closes the socket, flushes pending disk writes and exits.
 
 ### Disk usage
 
@@ -147,6 +170,7 @@ npm test                # vitest
 npm run test:coverage
 npm run build && npm start   # ingestion (live with a key, replay without)
 npm run replay               # check ./data captures against the normalization border
+npm run analyze              # replay ./data/live through the state: serial creators, collapses, REST budget
 ```
 
 Copy `.env.example` to `.env` and set `SOLAMI_API_KEY` (a key with only the Data API role).
@@ -161,9 +185,12 @@ src/events/             types.ts (normalized events) · schemas.ts (raw→normal
 src/rest/               client.ts · token-bucket.ts · ttl-lru-cache.ts · liquidity-history.ts
 src/ingest/             source.ts (EventSource + FrameProcessor) · live-source.ts · replay-source.ts
                         dedup.ts · event-queue.ts · backoff.ts · raw-persister.ts · health.ts
+src/state/              store.ts (StateStore) · token-state.ts · creator-state.ts · pending.ts · order.ts
+                        quote-prices.ts · scheduler.ts + enricher.ts (REST policy) · warm-start.ts · factory.ts
 src/config.ts           config loader
-src/main.ts             ingestion entrypoint
+src/main.ts             entrypoint: ingestion + state
 src/replay.ts           offline check of captures
+src/analyze.ts          offline replay through the state (calibration material for phase 4)
 tests/                  vitest suites + tests/fixtures (redacted real frames)
 docs/RESUMEN_Fase_*.md  design rationale per phase, decision by decision (Spanish)
 ```

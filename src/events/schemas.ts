@@ -59,7 +59,9 @@ const tokenCreate = z
     quote_mint: z.string(),
     name: z.string(),
     symbol: z.string(),
-    uri: z.string(),
+    // Missing in 2 of 18,055 real token_create (10.5 h capture, 2026-09-25). Rejecting the
+    // whole event for it would hide a launch from the detector.
+    uri: optionalText,
     creator: z.string(),
   })
   .transform(

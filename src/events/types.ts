@@ -70,7 +70,8 @@ export interface TokenCreateEvent extends EventBase, TxRef {
   readonly quoteMint: string;
   readonly name: string;
   readonly symbol: string;
-  readonly uri: string;
+  /** null when absent (2 of 18,055 real launches) or "". */
+  readonly uri: string | null;
   readonly creator: string;
 }
 

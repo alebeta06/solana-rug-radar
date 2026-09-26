@@ -11,6 +11,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node --env-file-if-exists=.env dist/main.js",
     "replay": "node dist/replay.js data",
+    "analyze": "node dist/analyze.js data/live",
     "lint": "eslint . && tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"

@@ -74,6 +74,17 @@ describe('normalizeEvent on real captured frames', () => {
     expect(frame('token_create', (r) => r.backfill === undefined).event.origin).toBe('realtime');
   });
 
+  it('token_create without uri is accepted (2 of 18,055 real launches came like this)', () => {
+    // The real frame from the 10.5 h capture (2026-09-25): no `uri` key at all.
+    const raw = parseJsonLossless(
+      '{"kind":"token","signature":"44zMCLmToeVdLj8GiFCJCEkN4212tyACBXwW7knRqJ94Ck7poFg7s3bZXFXCgQS4LwV6jni1hoAAoTujZA8yeUnW","slot":450313486,"block_time":1790328821,"tx_index":721,"ix_index":0,"inner_ix_index":-1,"dex":"meteora_dbc","mint":"fZDCnnFh8HdKnhLAmEnz8Hdbip2RRBDarFgjdQLoCPT","pool":"BjjNuYzsun6ivAMwQfCUXB7dFAezNuCY357RuBBWpVG8","base_mint":"fZDCnnFh8HdKnhLAmEnz8Hdbip2RRBDarFgjdQLoCPT","quote_mint":"So11111111111111111111111111111111111111112","name":"NAME","symbol":"NM","creator":"39JS3yfYsuBpgLd5qkaQfkvk2pV9CvsDAUBBy66GAb3E","indexed_at":1790328822435,"type":"token_create"}',
+    );
+    const result = normalize(raw);
+    expect(result.ok && result.event).toMatchObject({ type: 'token_create', uri: null, creator: '39JS3yfYsuBpgLd5qkaQfkvk2pV9CvsDAUBBy66GAb3E' });
+    const empty = normalize({ ...(raw as Raw), uri: '' });
+    expect(empty.ok && empty.event).toMatchObject({ uri: null });
+  });
+
   it('swap: reserves above 2^53 stay exact', () => {
     const { event } = frame('swap', (r) => typeof r.base_reserve === 'bigint');
     expect(event.baseReserve).toBe(16103776596248955n);

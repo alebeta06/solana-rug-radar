@@ -15,7 +15,7 @@ creador. Sus endpoints son fotos; nosotros hacemos la película.
 
 1. ✅ Esqueleto, tipos, capa de normalización, cliente REST, Docker, CI
 2. ✅ Ingesta del WebSocket (reconexión, backfill, dedup, contrapresión, persistencia, salud)
-3. Máquina de estados por token / creador (memoria acotada)
+3. ✅ Máquina de estados por token / creador (memoria acotada, `src/state/`)
 4. Detector (las 3 señales de abajo)
 5. Dashboard
 
@@ -68,13 +68,25 @@ dado; los demás son los rangos observados, a calibrar en la fase 4.
 9. `top10_pct` puede ser `"100"` en tokens sanos (el pool cuenta como holder). No usarlo sin
    descontar el pool.
 10. `graduated_time` = `0` → aún no graduó (→ `null`), no 1970.
-11. Volumen: ~1 `token_create`/s, ~86.000/día, PERO el stream completo con los 7 tipos es
+11. Volumen: ~0,47 `token_create`/s, **~40.000/día** (medido en 10,5 h en vivo, 2026-09-25;
+    la cifra anterior de ~86.000/día venía de una ventana corta), PERO el stream completo con los 7 tipos es
     **~970 frames/s** (medido): `swap` ~440/s y `transfer` ~450/s son el firehose de TODA Solana.
     Toda estructura por token/creador DEBE estar acotada (`TtlLruCache` con `maxEntries`,
     colas con capacidad). En crudo: ~58 GB/día (swap 38, transfer 18, resto 2,4).
 12. `transfer`: `mint` nunca trae `src_owner`; `burn` nunca trae `dst_owner`; ~3% de
     `transfer` sin `dst_owner` (causa desconocida). `swap.mcap_usd` falta en ~1%.
 13. `total_tax_pct`: no confirmado si es fracción o porcentaje. Solo compararlo consigo mismo.
+14. `token_create.uri` puede faltar (2 de 18.055 en la captura de 10,5 h) → `uri: null`.
+15. Los nombres de token pueden llevar `U+2028`/`U+2029` sin escapar (válido en JSON).
+    `node:readline` corta la línea ahí: los JSONL se leen partiendo SOLO por `\n`
+    (`readJsonlLines` en `replay-source.ts`).
+16. `meme.graduated` nunca es `true` (0 de 193.565): `meme` solo describe tokens en curva.
+    La graduación se sabe por el evento `graduation` (o por dev-history).
+17. `liquidity.base_usd`/`quote_usd` son el valor de la CANTIDAD movida, no de la reserva.
+    El precio USD de la moneda de cotización sale de `quote_usd / quote_amount`
+    (SOL p1–p99 = 115,96–121,62 $ en 10,5 h). Hay decenas de monedas de cotización, no solo SOL/USDC.
+18. Un swap drena un pool sin emitir `liquidity remove`: la liquidez real hay que leerla
+    también de las reservas de los `swap` (`quote_reserve` tras la operación).
 
 ## Endpoints
 
@@ -156,6 +168,31 @@ importan los de tokens que ya vigilamos. Lo correcto: **una segunda conexión WS
 estados de la fase 3), en lugar de suscribirse al firehose completo. Verificar antes cómo
 admite el servidor una lista larga de mints y si permite actualizarla sin reconectar.
 
+## Memoria (fase 3, `src/state/`)
+
+- **`StateStore`**: `TokenState` (etapa `created<curve<graduated`, pools, lecturas de liquidez
+  con hora y origen `curve|pool|rest`, pico) y `CreatorState` (lanzamientos por mint con su
+  resultado, `serial` pegajoso, números de dev-history). Solo guarda tipos que importan
+  (token_create, meme, graduation, pool_create, liquidity, swap de tokens seguidos).
+- **Reloj = marca de agua** (máximo `block_time` visto, con tope `receivedAt + 60 s`).
+  Ventanas y expulsión van en tiempo de evento: el replay se comporta como el directo.
+- **Independiente del orden e idempotente** (tests con permutaciones y con todo aplicado dos
+  veces). Etapas solo avanzan; "hora de X" = la más temprana; lecturas por posición on-chain
+  (slot, tx, ix, inner). `liquidity`/`pool_create` antes de su token esperan en un búfer
+  acotado (`pending.ts`). LÍMITES conocidos: un `swap` anterior a su token se descarta (no se
+  retiene: el 99 % son de tokens ajenos); una lectura de curva sin precio de SOL conocido aún
+  (primer segundo) se cuenta en `unpricedReadings` y se omite.
+- **Expulsión**: token inactivo 60 min en curva / 24 h graduado → se pliega en un
+  `LaunchRecord` del creador. Creadores: 24 h (≥ ventana, config lo valida), 7 días si
+  alguna vez superaron el umbral. Un evento demasiado viejo no resucita un token expulsado.
+- **Persistencia**: arranque en caliente re-leyendo las últimas 24 h de `data/live/lifecycle-*`
+  (el log crudo ES la persistencia). Sin formato propio.
+- **REST** (`scheduler.ts` + `enricher.ts`): una petición por creador; prioridad
+  suspect (re-consulta cada 10 min) > graduation > new-creator > known-creator (≥ 6 h).
+  Simulado sobre la captura: ~0,4 req/s de media, 0 descartes. Sin API key se simula en tiempo
+  de evento.
+- `npm run analyze`: pasa `data/live` por la memoria e imprime material de calibración.
+
 ## Caché REST (TTL en config)
 
 | Nivel | Qué | Clave | TTL |
@@ -184,5 +221,6 @@ npm test              # vitest
 npm run test:coverage
 npm run build && npm start          # ingesta: directo con SOLAMI_API_KEY, replay sin ella
 npm run replay                      # comprobar data/*.jsonl contra el borde (exit 1 si hay rechazos)
+npm run analyze                     # replay de data/live por la memoria: seriales, colapsos, presupuesto REST
 docker compose up --build           # ingesta en contenedor; health en localhost:8080/health
 ```

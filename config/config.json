@@ -61,6 +61,28 @@
     "lifecycleMaxTotalMB": 1024,
     "firehoseMaxTotalMB": 500
   },
+  "state": {
+    "maxTokens": 100000,
+    "maxCreators": 200000,
+    "maxLaunchesPerCreator": 1000,
+    "maxPoolsPerToken": 8,
+    "maxReadingsPerToken": 120,
+    "readingBucketSeconds": 60,
+    "tokenIdleMinutes": { "curve": 60, "graduated": 1440 },
+    "creatorRetentionHours": { "default": 24, "serial": 168 },
+    "sweepEverySeconds": 60,
+    "lateAfterSeconds": 60,
+    "maxFutureSkewSeconds": 60,
+    "pending": { "maxMints": 5000, "maxEventsPerMint": 16, "ttlSeconds": 600 },
+    "warmStart": { "enabled": true, "hours": 24 }
+  },
+  "enrichment": {
+    "maxPending": 2000,
+    "maxWaitMinutes": 30,
+    "maxInflight": 2,
+    "suspectRepollMinutes": 10,
+    "knownRefreshMinutes": 360
+  },
   "health": {
     "port": 8080,
     "logEveryMs": 30000

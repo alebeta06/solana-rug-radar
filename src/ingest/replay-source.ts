@@ -11,7 +11,6 @@
  */
 import { createReadStream, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { createInterface } from 'node:readline';
 import { systemClock, type Clock } from '../core/time.js';
 import type { SolamiEvent } from '../events/types.js';
 import { FrameProcessor, type EventSource, type SourceHealth, type SourceState } from './source.js';
@@ -28,6 +27,21 @@ export function expandJsonlPaths(paths: readonly string[]): string[] {
         return statSync(child).isDirectory() ? expandJsonlPaths([child]) : name.endsWith('.jsonl') ? [child] : [];
       });
   });
+}
+
+/**
+ * JSONL lines split on "\n" ONLY. node:readline also breaks lines on U+2028/U+2029, which are
+ * legal unescaped inside a JSON string: 9 real token names in the 10.5 h capture contain one,
+ * and readline turned each into two "invalid JSON" rejections.
+ */
+export async function* readJsonlLines(file: string): AsyncGenerator<string> {
+  let pending = '';
+  for await (const chunk of createReadStream(file, { encoding: 'utf8' })) {
+    const parts = (pending + (chunk as string)).split('\n');
+    pending = parts.pop() ?? '';
+    yield* parts;
+  }
+  if (pending !== '') yield pending;
 }
 
 export interface ReplaySourceOptions {
@@ -52,18 +66,13 @@ export class ReplaySource implements EventSource {
     this.state = 'replaying';
     try {
       for (const file of this.files) {
-        const lines = createInterface({ input: createReadStream(file), crlfDelay: Infinity });
-        try {
-          for await (const line of lines) {
-            if (this.closed) return;
-            if (line.trim() === '') continue;
-            const event = this.processor.process(line);
-            if (event === null) continue;
-            this.processor.counters(event.type).delivered += 1;
-            yield event;
-          }
-        } finally {
-          lines.close();
+        for await (const line of readJsonlLines(file)) {
+          if (this.closed) return;
+          if (line.trim() === '') continue;
+          const event = this.processor.process(line);
+          if (event === null) continue;
+          this.processor.counters(event.type).delivered += 1;
+          yield event;
         }
       }
     } finally {

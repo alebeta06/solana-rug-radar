@@ -36,11 +36,13 @@ export function summarizeHealth(health: SourceHealth, now: UnixMillis): string {
   return parts.filter(Boolean).join(' ');
 }
 
+/** `getState`: what the memory knows (phase 3), served under `state`. */
 export function startHealthServer(
   port: number,
   getHealth: () => SourceHealth,
   clock: Clock,
   staleAfterMs: number,
+  getState?: () => unknown,
 ): Promise<Server> {
   const server = createServer((req, res) => {
     if (req.method !== 'GET' || req.url !== '/health') {
@@ -50,7 +52,7 @@ export function startHealthServer(
     const health = getHealth();
     const healthy = isHealthy(health, clock(), staleAfterMs);
     res.writeHead(healthy ? 200 : 503, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ healthy, ...health }));
+    res.end(JSON.stringify({ healthy, ...health, ...(getState ? { state: getState() } : {}) }));
   });
   return new Promise((resolve, reject) => {
     server.once('error', reject);

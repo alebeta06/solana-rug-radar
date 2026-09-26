@@ -85,11 +85,56 @@ const configSchema = z.object({
     lifecycleMaxTotalMB: positiveInt,
     firehoseMaxTotalMB: positiveInt,
   }),
+  /** Phase 3: per-token lifecycle and per-creator history, bounded. See src/state/store.ts. */
+  state: z
+    .object({
+      maxTokens: positiveInt,
+      maxCreators: positiveInt,
+      maxLaunchesPerCreator: positiveInt,
+      maxPoolsPerToken: positiveInt,
+      maxReadingsPerToken: positiveInt,
+      /** History keeps one reading per (source, pool, bucket): the last one. Swaps move reserves every second. */
+      readingBucketSeconds: positiveInt,
+      /** Idle time (event time, no activity) after which a token is folded into its creator and dropped. */
+      tokenIdleMinutes: z.object({ curve: positiveInt, graduated: positiveInt }),
+      /** Creators are kept at least the launch window; serial ones (ever over the burst threshold) much longer. */
+      creatorRetentionHours: z.object({ default: positiveInt, serial: positiveInt }),
+      sweepEverySeconds: positiveInt,
+      /** Events older than the watermark by more than this are counted as late (still applied). */
+      lateAfterSeconds: positiveInt,
+      /** An event time can move the watermark at most this far past the local receive time. */
+      maxFutureSkewSeconds: positiveInt,
+      /** Pool/liquidity events that arrive before their token (out of order): held briefly, bounded. */
+      pending: z.object({ maxMints: positiveInt, maxEventsPerMint: positiveInt, ttlSeconds: positiveInt }),
+      /** On a live start, rebuild memory by replaying the persisted lifecycle log of the last N hours. */
+      warmStart: z.object({ enabled: z.boolean(), hours: positiveInt }),
+    })
+    .refine((s) => s.creatorRetentionHours.default * 60 >= s.tokenIdleMinutes.graduated, {
+      message: 'creatorRetentionHours.default must cover tokenIdleMinutes.graduated',
+      path: ['creatorRetentionHours', 'default'],
+    }),
+  /** REST enrichment policy (who is asked, in which order) on top of rest.requestsPerSecond. */
+  enrichment: z.object({
+    /** Waiting requests (one per creator); beyond it the lowest-priority oldest is discarded. */
+    maxPending: positiveInt,
+    /** A request that waited this long is discarded: its answer would be stale anyway. */
+    maxWaitMinutes: positiveInt,
+    maxInflight: positiveInt,
+    /** Creators over the launch-burst threshold are re-asked this often (collapse is an event in time). */
+    suspectRepollMinutes: positiveInt,
+    /** A known, non-suspect creator's new launch re-asks only if the last ask is older than this. */
+    knownRefreshMinutes: positiveInt,
+  }),
   health: z.object({
     port: z.int().min(0).max(65535),
     logEveryMs: positiveInt,
   }),
-});
+})
+  .refine((c) => c.state.creatorRetentionHours.default >= c.detection.launchBurst.windowHours, {
+    // Forgetting a creator inside the window would reset its launch count (signal 1).
+    message: 'creatorRetentionHours.default must be >= detection.launchBurst.windowHours',
+    path: ['state', 'creatorRetentionHours', 'default'],
+  });
 
 /** Disk caps can be raised per machine from the environment, without editing the shared config. */
 const ENV_OVERRIDES = {
