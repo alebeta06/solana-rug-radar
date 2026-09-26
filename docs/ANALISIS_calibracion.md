@@ -1,260 +1,311 @@
 # Análisis de calibración (antes del detector)
 
-Datos: `data/live/`, 12,5 h de tiempo de evento (captura del 2026-09-25): 18.055 lanzamientos,
-1.728 graduaciones, y swaps **solo de los últimos 40 minutos** (el resto se rotó por el tope de
-disco). dev-history consultado el 2026-09-26 para 52 creadores (un día después de la captura).
-Reproducible: `npm run build && node --env-file=.env dist/calibration.js --rest`
-(`src/calibration.ts`; sin `--rest` no hace falta API key).
+**Versión 2 — captura nocturna del 2026-09-26.** Sustituye a la versión de la captura del
+2026-09-25, que solo tenía **40 minutos** de swaps. Las diferencias con esa versión están marcadas
+con **[CAMBIA]**, **[SE CONFIRMA]** o **[RETIRO]** (algo que di por bueno y no lo es).
 
-No se ha cambiado ninguna regla ni se proponen umbrales nuevos sin el número al lado.
+No se ha cambiado ninguna regla ni se ha escrito el detector. Los números que proponen algo llevan
+su medida al lado.
 
----
+## Datos y método
 
-## 0. Primero: los "814 colapsos" no son un solo fenómeno
-
-La cifra venía de mi métrica de la fase 3: liquidez del lado de la cotización (SOL) ≥ 1.000 $ y
-después ≤ 5 $. Al desglosarla aparecen tres cosas distintas:
-
-| Grupo | Tokens | Qué es (verificado) |
-|---|---|---|
-| **A. Tirón de liquidez del creador** | **348** | El creador lanza en meteora_dbc (gradúa en el mismo segundo), abre él mismo un pool en pumpswap con **85 SOL**, espera ~6 min y lo retira todo, más lo que metieron los compradores |
-| **B. Curva de pump.fun que vuelve a cero** | **355** (330 verificados con `meme`) | Nunca gradúa. Sube al 10–30 % de progreso (mediana 14,9 %) y vuelve al ~0 %: todo lo comprado se revende. Es un pump & dump en la curva, **no hay pool que vaciar** |
-| C. Graduados en meteora_dbc sin aporte del creador | 97 | Mecanismo no aclarado |
-| Otros | 14 | raydium_launchpad (9), sin `token_create` (2), pump.fun graduados (2), etc. |
-
-Consecuencias:
-- Las preguntas 1 y 2 se responden abajo sobre los 814, como pediste, pero **el grupo A es el
-  único que es claramente un rug de pool**.
-- **El "daño" que di en la fase 3 estaba inflado.** Pico − final cuenta los 85 SOL que el propio
-  operador metió y recuperó. El dato correcto para el grupo A es la **extracción neta** (SOL
-  retirado − SOL aportado por el creador): **18.498 SOL (~2,2 M$ a 119 $/SOL) en 348 tokens**,
-  mediana de 8,1 SOL por token (p10 2,2, p90 14,9). **Ningún** creador del grupo A perdió dinero.
-- **La métrica y la `liquidity_usd` de Solami no coinciden siempre.** En la muestra REST, 10 de
-  30 tokens "colapsados" tienen hoy 20–45 k$ según Solami. Tracé uno (`2UNeWV…`): quedan
-  3·10⁻⁹ SOL en el pool de pumpswap y el de damm2 tiene una cantidad enorme del token y ~0 SOL.
-  Es decir, el SOL real se fue; la cifra de Solami parece valorar el lado del token a un precio
-  que ya no existe. **Verificado solo en ese caso.**
-- **Al revés también falla:** 8 de 20 tokens del grupo de control (graduados, "no colapsados"
-  según el stream) están hoy a ≤ 5 $ según Solami. Pueden haberse vaciado vendiendo (sin swaps
-  no lo vemos) o después de la captura. **No se puede distinguir con estos datos.**
+- Captura: `data/live/*-20260926*`, 10 ficheros de ciclo de vida (789 MB) y 315 de swaps
+  (16 GB), de 06:39 a 17:00 UTC (**10,3 h**), más el backfill del arranque (desde 05:29).
+  **19.447 lanzamientos, 2.109 graduaciones, 166.846 eventos `liquidity`, 16,6 M swaps**, de los
+  que 8,7 M son de tokens que seguimos. 0 duplicados, 0 tramas rechazadas.
+- **Cambio de método [CAMBIA]:** el replay anterior leía primero todos los ficheros de ciclo de
+  vida y luego los de swaps. Con 40 min de swaps daba igual, pero con una noche entera no: los
+  swaps llegaban horas después de que el token hubiera sido expulsado de la memoria. Ahora los
+  dos niveles se intercalan por `block_time` (`src/calibration/capture.ts`). Los swaps de tokens
+  que nunca aparecen en el ciclo de vida se filtran sin parsearlos (7,9 M líneas descartadas).
+- Pipeline idéntico al de producción: `StateStore` y enricher simulado, sobre tiempo de evento.
+- dev-history consultado el 2026-09-26 a las 20:45 UTC, **3,7 h después del fin de la captura**:
+  muestra estratificada de 270 creadores.
+- Reproducible (el resultado de la extracción se guarda en `data/calibration/`, fuera de git):
+  ```bash
+  npm run build
+  node --max-old-space-size=8192 dist/calibration/extract.js 20260926      # ~35 min
+  node dist/calibration/report.js 20260926 [--tradable]                    # segundos
+  node --env-file=.env dist/calibration/solami.js 20260926                 # REST, ~5 min
+  node --expose-gc dist/calibration/extract.js 20260926 --memory [--warm 20260925]
+  node --expose-gc dist/calibration/rest-memory.js 20260926 [--serial-listed 100] [--warm]
+  ```
+  La versión de 40 min se reproduce con `src/calibration.ts` del commit `39ae21a`.
 
 ---
 
-## 1. Lanzamientos de los creadores de los 814 colapsos
+## 0. Lo primero: mi métrica de colapso estaba mal para los graduados [RETIRO]
 
-Lanzamientos de cada creador **dentro de la captura**:
+La métrica de la fase 3 define un colapso como "liquidez del lado SOL ≥ 1.000 $ y después
+≤ 5 $", **sumando todos los pools del token**. Pero al migrar, meteora_dbc deja en el **pool de
+curva** ~11–14 SOL (1.300–1.700 $) con los que nadie puede operar. Un token cuyo pool real
+(damm2) está vaciado sigue sumando esos ~1.300 $ y parece "vivo".
 
-| Lanzamientos del creador | Creadores | Tokens colapsados | % de los 814 |
-|---|---|---|---|
-| 1 | 668 | 668 | 82,1 % |
-| 2 | 24 | 32 | 3,9 % |
-| 3–10 | 33 | 38 | 4,7 % |
-| > 10 | 34 | 76 | 9,3 % |
+Lo descubrí al cruzar con Solami (§5): de 100 graduados que mi métrica daba por vivos, **31
+tenían el pool damm2 con 0,003–0,04 SOL y el de curva con 11–14 SOL**. Solami los daba a 1–5 $
+con **146–213 holders**, que es exactamente el patrón que originó el proyecto.
 
-759 creadores distintos para 814 tokens: 735 tienen un solo colapso, 14 tienen dos y 10 tres o
-más (el máximo, 9).
+He añadido una segunda métrica, **liquidez negociable**: para un graduado, solo cuentan los pools
+que no son de curva (pumpfun, meteora_dbc, raydium_launchpad). Comparadas sobre los 2.109
+graduados:
 
-En el grupo A (el rug de pool) es más extremo: **348 tokens de 345 creadores distintos**. Solo 3
-wallets repiten.
-
-**Conclusión:** para el tirón de liquidez, la hipótesis se confirma. Es una wallet por token, y
-contar lanzamientos por wallet no los ve.
-
-Una precaución: **tener una sola wallet con un solo token es lo normal para todo el mundo**, no
-solo para los que roban. 6.436 de 7.944 creadores lanzaron 1 token, y en el control REST 10 de
-20 creadores legítimos también eran wallets nuevas de un solo token. "Wallet nueva" por sí sola
-no discrimina.
-
----
-
-## 2. Cruce: 230 seriales frente a 759 creadores con colapso
-
-| | Creadores |
+| | Tokens |
 |---|---|
-| En los dos grupos | 32 |
-| Solo seriales (> 10 lanzamientos) | 198 |
-| Solo con colapso | 727 |
+| Colapsan con las dos | 710 |
+| **Solo con la negociable** | **486** (485 meteora_dbc → damm2, vaciados por ventas) |
+| Solo con la de la fase 3 | 3 |
+| Ninguna | 910 |
 
-Tokens colapsados de creadores seriales: 76 de 814 (9,3 %). Si se usa como regla, "creador con
-> 10 lanzamientos" marca 7.456 tokens, de los que colapsan 76: **precisión del 1,0 %**.
+**Salvo que se diga lo contrario, lo que sigue usa la métrica negociable para los graduados.**
+Arreglarla en el store es tarea de la fase 4 (anotado en `CLAUDE.md`).
 
-**Pero dentro de los seriales hay dos poblaciones muy separadas**, según qué parte de lo que
-lanzan llega a graduar:
+## 0b. Qué hay dentro de los colapsos
 
-| Fracción graduada | Creadores seriales | Sus lanzamientos | Sus colapsos (stream) |
-|---|---|---|---|
-| 0 | 181 | 5.019 | 32 |
-| (0, 10 %] | 35 | 2.144 | 11 |
-| (10 %, 50 %] | 2 | 56 | 0 |
-| **> 50 %** | **12** | **223** | **31** |
-
-Los 12 del último grupo son el **patrón que originó el proyecto**. Lo confirma dev-history para
-los tres que entraron en la muestra:
-
-| Creador | Lanzados (histórico) | A ≤ 5 $ hoy | Holders del token consultado |
-|---|---|---|---|
-| `D4fvEy…` | 32 | 32/32 | 29 |
-| `Ge4Drz…` | 227 | 95/100 listados | 203–213 |
-| `5NUms5…` | 23 | 23/23 | 187 |
-
-El stream solo les ve 31 colapsos de 223 tokens. Encaja con un vaciado por ventas, que sin swaps
-no se ve (hipótesis, no verificada).
-
-La separación no es un umbral elegido: la distribución es bimodal, con 216 seriales que
-gradúan ≤ 10 %, 12 que gradúan > 50 % y solo 2 en medio.
-
----
-
-## 3. ¿Qué distingue a un graduado que colapsa de uno que no?
-
-Graduados: 1.728; colapsados según el stream: 448; no colapsados: 1.280. AUC = probabilidad de
-que un colapsado tenga un valor mayor que un no colapsado (0,5 = no separa; lejos de 0,5 = separa).
-
-| Variable | Mediana colapsados [p25–p75] | Mediana no colapsados [p25–p75] | AUC |
-|---|---|---|---|
-| Nº de "add" de liquidez | 1 [1–1] | 0 [0–0] | 0,86 |
-| Pico de liquidez (lado SOL) | 10.057 $ [9.889–10.253] | 1.295 $ [0,01–9.951] | 0,77 |
-| Nº de pools | 2 [2–2] | 1 [1–2] | 0,76 |
-| Creación → graduación | 0 s [0–0] | 0 s [0–82] | 0,38 |
-| Trades en la curva (ventana 1 h) | 1 | 1 [1–4] | 0,53 |
-| Lanzamientos del creador | 1 [1–1] | 1 [1–9] | 0,41 |
-| Nº de "remove" | 2 [2–2] | 0 [0–1] | 0,89 ⚠ |
-
-⚠ Los "remove" **son** el colapso: no sirven para predecirlo, se muestran solo como control.
-
-Variables categóricas (qué fracción colapsa):
-
-| Variable | Valor | Colapsan |
+| Grupo | Tokens | Qué es (verificado con los eventos) |
 |---|---|---|
-| Launchpad | meteora_dbc | 444/1.050 (42,3 %) |
-| | pump.fun | 2/440 (0,5 %) |
-| | raydium_launchpad | 0/30 |
-| Quien retira es el creador | sí | 381/790 (48,2 %) |
-| | no | 21/69 (30,4 %) |
-| | nadie retira | 46/869 (5,3 %) |
+| **A. El creador aporta liquidez y la retira** | **422** | Lanza en meteora_dbc, abre él mismo un pool en pumpswap con 84,99 SOL y ~8 min después retira todo |
+| **C1. El creador retira el pool de migración** | **268** | meteora_dbc → damm2. El creador no aporta nada, pero **recibe la liquidez de la migración** y la retira. El primer `remove` se lleva el 100 % del SOL y **es** el colapso (266 de 278, mismo evento) |
+| **C2. Dev dump: el creador vende** | **462** | meteora_dbc → damm2. El creador vende sus tokens en el pool damm2 y lo vacía. **Una sola venta** (p50), en el mismo segundo que el colapso (420 de 462). Pools pequeños: pico p50 = 1.821 $ |
+| C3. Vaciados por ventas de terceros | 44 | Muchos vendedores; sin patrón claro |
+| B. Curva que vuelve a cero | 2.799 | Nunca gradúa: pump.fun (2.746), raydium_launchpad (38)… Con swaps completos ahora se ven todas (antes, 355). Es la muerte normal de un token en la curva, **no hay pool que vaciar**. Fuera del alcance |
 
-**La variable que mejor separa, y que se observa ANTES del vaciado:**
-
-| Regla (sobre todos los tokens) | Tokens que la cumplen | Colapsan (precisión) | % de los 814 que cubre |
-|---|---|---|---|
-| **El creador aporta liquidez él mismo** | **356** | **348 (97,8 %)** | 42,8 % (≈ todo el grupo A) |
-| Launchpad meteora_dbc | 1.583 | 446 (28,2 %) | 54,8 % |
-| Creado y graduado en el mismo segundo | 1.026 | 376 (36,6 %) | 46,2 % |
-| Creador con ≤ 2 lanzamientos | 8.393 | 700 (8,3 %) | 86,0 % |
-| Creador con > 10 lanzamientos (señal 1) | 7.456 | 76 (1,0 %) | 9,3 % |
-
-Más datos de esa regla:
-- **Cantidad aportada:** en 339 de 348 casos, el primer aporte del creador es **84,9–85,1 SOL**,
-  lo mismo que deposita una graduación real de pump.fun. Imitan un token recién graduado. Los 7
-  aportes de creadores que no colapsaron no tienen un importe distinto (5 de ellos también ~85
-  SOL), así que el importe no añade separación.
-- **Margen de aviso:** del aporte a la retirada pasan p10 = 218 s, **p50 = 378 s**, p90 = 609 s
-  (n = 341). Una alerta en el momento del aporte llegaría ~6 minutos antes del tirón.
-- **Honestidad sobre el 97,8 %:** la etiqueta (el colapso) la mide mi propio stream. De los 8
-  "no colapsados", 6 aportaron cerca del final de la captura y nunca se vio la retirada.
-
-Lo que **no** separa:
-- **Reutilización de nombres entre creadores:** 52,1 % en colapsados y 50,2 % en no colapsados.
-- **`bundlers_count` (solo REST, muestra de 50):** 0–2 en los dos grupos, sin diferencia visible.
-- **Liquidez final repetida (señal 3):** en los colapsados la final es ~0 (p50 0,00 $, p90 0,89 $).
-  No queda nada que "repetir". La huella de automatización está en el aporte inicial (85 SOL),
-  no en la liquidez final.
-
-**Swaps (solo graduados dentro de los 40 min con swaps: 57 colapsados y 65 no):**
-
-| Variable | Colapsados | No colapsados | AUC |
-|---|---|---|---|
-| Nº de swaps | 1.366 | 1.377 | 0,51 |
-| Traders distintos | 223 | 218 | 0,60 |
-| Trades por trader | 2,92 | 4,13 | 0,43 |
-| Proporción de ventas | **0,11** [0,04–0,28] | **0,47** [0,31–0,52] | **0,14** |
-
-En los que colapsan casi nadie vende antes del tirón (compran bots o gente que no llega a
-salir; sin verificar). Es la segunda variable más fuerte, pero **n = 122 y solo 40 minutos**:
-hace falta capturar swaps de los tokens seguidos para confirmarla.
+**Rugs de pool (graduados que colapsan): 1.196 = A + C1 + C2 + C3 + 0.** Es el denominador de
+todo lo que sigue.
 
 ---
 
-## 4. dev-history: ¿tienen pasado los creadores de colapsos?
+## 1. La señal principal: "el creador aporta liquidez a su propio token" [SE CONFIRMA]
 
-Muestra aleatoria con semilla fija: 30 creadores de colapsos graduados y 20 de graduados no
-colapsados. Inicio de la captura: 2026-09-25 04:37 UTC.
-
-| | Colapsos (30) | Control (20) |
+| | 40 min de swaps | Noche completa |
 |---|---|---|
-| Wallet de 1 solo token, sin nada antes de la captura | **23** | 10 |
-| Sin historial antes de la captura | 26 | 13 |
-| Con historial antes de la captura | 4 (`Ge4Drz` 37, `CVWZDW` 7, `FYjpSv` 6, `HCRQbm` 6) | 7 |
-| Token consultado a ≤ 5 $ según Solami | 20 | 8 |
-| Holders del token consultado | 13–45 (salvo seriales: 187–206) | 3–1.508 |
+| Tokens que la cumplen | 356 | **431** (431 wallets distintas) |
+| Colapsan | 348 (97,8 %) | **422 (97,9 %)** |
+| Sin resolver | 6 de 8 (aportaron al final) | 5 de 9 (aportaron ≤ 310 s antes del fin) |
 
-"Antes de la captura" se cuenta sobre los tokens que lista dev-history, que corta en 100. En un
-creador del control (`8WZwQJ…`, 287 lanzados, primer lanzamiento el 20-09) sale 0 por ese corte.
+**Precisión:** 422 de 431 = 97,9 %. De los 9 que no colapsan, 5 aportaron entre 18 y 310 s antes
+de que acabara la captura (no se puede saber qué pasó). Los otros 4 son **aportes simbólicos**
+(0,01–0,12 SOL) y siguen vivos 2,6–6,7 h después. Sin los 5 sin resolver: **422 de 426 = 99,1 %**.
 
-**Respuesta:** la gran mayoría son **wallets realmente nuevas**. No hay un historial escondido
-que el stream no viera: 23 de 30 nacieron, lanzaron un token y lo vaciaron dentro de la captura.
+**Recall:**
 
-Los tokens del grupo A tienen **pocos holders (13–19)**, frente a ~200 en el patrón original. Es
-decir, mucho SOL extraído de pocas carteras. Probablemente sean bots que compran tokens "recién
-graduados", pero **no está verificado**.
+| Denominador | Cubre |
+|---|---|
+| Todos los rugs de pool (1.196) | **422 = 35,3 %** |
+| Rugs por `liquidity remove` (690) | 422 = 61,2 % |
+| Rugs por ventas (506) | 0 |
 
-Hallazgos colaterales de la API:
-- dev-history devuelve `ath_mcap_usd`/`ath_usd` = `null` en algunos tokens, y el esquema de la
-  fase 1 rechazaba la respuesta entera (9 de 52 fallaron). **Corregido**, con test.
-- dev-history lista **como máximo 100 tokens** aunque se pida `limit=200` (`Ge4Drz`: 227
-  lanzados, 100 listados).
+**[CAMBIA]** En la versión anterior no di un recall limpio (42,8 % de 814 mezclaba curvas). Con
+el denominador bien definido, **la señal principal ve un tercio de los rugs de pool**, no casi
+todos. Ve el grupo A entero y nada de C1, C2 ni C3.
 
----
+**Margen de aviso** (del aporte del creador al colapso, n = 422):
 
-## 5. El caso que originó el proyecto
+| mín | p5 | **p10** | p25 | p50 | p75 | p90 | máx |
+|---|---|---|---|---|---|---|---|
+| 59 s | 189 s | **322 s** | 368 s | 485 s | 541 s | 597 s | 3 h |
 
-| Creador | ¿En la captura de 12,5 h? | dev-history hoy |
-|---|---|---|
-| `BpxbkX…` | **No** (sí en las capturas del 24-09) | 63 lanzados, 63 migrados, **todos antes** del inicio de la captura; 56/63 a ≤ 5 $; 197 holders |
-| `95kdrk…` | **No** (sí en las capturas del 24-09) | 97 lanzados, 97 migrados, **todos antes** de la captura; 95/97 a ≤ 5 $; 209 holders |
+- **Menos de 60 s:** 1 caso. **Menos de 2 min:** 11 (2,6 %). Ninguno en el mismo segundo.
+- Hay que restar la latencia del stream: el evento llega ~0,4–1,9 s después del bloque (medido
+  en vivo sobre 105 eventos).
+- **[CAMBIA]** Antes: p10 = 218 s, p50 = 378 s (n = 341). Con más datos, el aviso es **mejor**
+  en la cola baja.
+- **Lo que se puede prometer:** aviso de **≥ 3 min en el 95 % de los casos y ≥ 5 min en el
+  90 %**, para el tipo de rug que ve esta señal.
 
-Los dos dejaron de lanzar con esas wallets antes del 25-09 a las 04:37 UTC. En la captura sí hay
-operadores del mismo estilo: los **12 seriales que gradúan > 50 %** (223 lanzamientos).
+**Otros datos:**
+- **Ritmo:** 40–47 casos por hora, constante toda la noche. Es una operación industrial con una
+  wallet nueva por token.
+- **Extracción neta** (SOL retirado − SOL aportado por el creador): **5.810 SOL** en 10,3 h.
+  Por token: p10 = 2,85, p50 = 10,6, p90 = 14,6 SOL. Ningún creador perdió SOL.
+- **[RETIRO] el total anterior (18.498 SOL).** Por token, la distribución es casi la misma que
+  antes (2,2 / 8,1 / 14,9). El total depende de unos pocos valores extremos (máximo actual:
+  1.155 SOL) y no lo he re-verificado. **No usar ese total como cifra representativa.**
 
-**¿Qué fracción del daño cubren?** No se puede calcular en SOL con estos datos. Su vaciado no
-pasa por un `remove` que el stream vea, y solo hay 40 minutos de swaps.
+## 2. La proporción de ventas [RETIRO como señal independiente]
 
-Lo que sí se puede comparar:
+Con la métrica de la fase 3 parecía confirmarse con n suficiente:
 
-| | Tokens | Holders por token | SOL extraído medible |
+| Graduados (≥ 10 swaps) | Colapsan | No colapsan | AUC |
 |---|---|---|---|
-| Patrón original (12 seriales) | 223 | ~190–210 (3 creadores de muestra) | no medible |
-| Tirón de liquidez (grupo A) | 348 | 13–19 (muestra) | 18.498 SOL netos |
+| Toda la captura | 0,27 (n = 712) | 0,50 (n = 1.237) | 0,09 |
+| 5 primeros min tras graduar, antes del colapso | 0,21 | 0,48 | 0,12 |
 
-Por SOL, el grupo A es con seguridad la mayor parte de lo medible. Por número de víctimas, el
-patrón original afecta a ~10 veces más carteras por token. **Cuál de los dos es "más daño"
-depende de la métrica, y la del patrón original no la tenemos.**
+**Pero no es independiente:**
+- **Es un reflejo de la señal principal.** Los tokens de la señal principal venden poco desde
+  el principio (p50 = 0,19 frente a 0,45 del resto, AUC 0,13).
+- **Dentro de la señal principal no aporta nada:** AUC 0,40, con n = 8 negativos.
+- **Con la métrica corregida, la separación desaparece.** Los rugs que la señal principal no ve
+  (dev dumps, sobre todo) **venden más** que los tokens vivos:
+
+  | Métrica negociable | Colapsan | No colapsan | AUC |
+  |---|---|---|---|
+  | Todos los graduados, 5 min | 0,31 (n = 1.178) | 0,42 (n = 706) | 0,48 |
+  | **Sin la señal principal**, 5 min | 0,51 (n = 756) | 0,42 (n = 698) | 0,67 (invertido) |
+
+- **Como regla aparte sirve poco.** "Proporción ≤ 0,1 a los 5 min", sobre tokens sin la señal
+  principal, marca 104 tokens de los que colapsan 71 (6 % de los 1.196). Con la métrica de la
+  fase 3, 15 de esos colapsos llegaban antes de cumplirse los 5 min (la alerta llegaría tarde).
+
+**Conclusión:** el 0,11 frente a 0,47 de la versión anterior era la señal principal vista desde
+otro ángulo. **No la usaría.**
+
+## 3. El patrón de los 85 SOL [SE CONFIRMA, más estrecho]
+
+- **Es todavía más estrecho que antes:** 420 de 422 colapsos del grupo A aportan
+  **exactamente 84,99 SOL** (p5 = p90 = 84,99; los otros 2, < 80 SOL). Antes: 339 de 348 en 84,9–85,1.
+- **Como regla sola** ("cualquier `add` de 84,9–85,1 SOL"): 425 tokens y 420 colapsan (98,8 %).
+  Los 5 restantes son los sin resolver del final de la captura, así que es el **100 % de los
+  resueltos**.
+- **[RETIRO]** Dije que 85 SOL era "lo mismo que deposita una graduación real de pump.fun". En el
+  stream, **las migraciones de pump.fun no aparecen como `liquidity add`**: solo 1 de 478 graduados
+  de pump.fun lo tiene. Nadie más que estos creadores añade 85 SOL.
+- **¿Sirve sola? No añade nada.** Marca el mismo conjunto que la señal principal, quitando los 4
+  aportes simbólicos: 0 casos nuevos. Además, el operador la evade cambiando una cifra. **Sirve
+  como huella de confirmación** (misma banda → mismo operador probable), no como regla. Filtrar
+  los aportes simbólicos se consigue igual con un mínimo de SOL en la señal principal.
+
+## 4. Los colapsos "sin aclarar" [CAMBIA: ya están clasificados]
+
+**Los 111 concretos de la pasada anterior no se pueden reexaminar.** Sus swaps no están: la
+captura del 25-09 solo guardó swaps de 15:08 a 15:48 UTC. He clasificado el grupo equivalente de
+esta noche (graduados que colapsan sin aporte del creador).
+
+- **Con la métrica de la fase 3 son 291:**
+  - 268 son el mecanismo C1.
+  - 21 son vaciados por ventas.
+  - 2 no tienen un mecanismo claro.
+- **Con la métrica negociable son 774** (C1 + C2 + C3 de la tabla 0b). Sobre todo aparecen los
+  **462 dev dumps**, que antes el pool de curva ocultaba.
+
+**Ninguno de estos mecanismos avisa con antelación desde su propio evento.** El `remove` de C1
+y la venta de C2 **son** el vaciado. Sirven para etiquetar el rug al instante, no para
+anticiparlo.
+
+**Lo que sí anticipa parte de ellos es la reincidencia.** C1 y C2 no son wallets de un solo uso:
+- 774 tokens de 415 creadores.
+- 289 tokens de creadores con > 10 lanzamientos.
+- 222 dev dumps son de los 22 seriales que gradúan > 50 %.
+
+Regla medida (no propuesta como definitiva): **"al graduar, el creador ya vació otro token
+antes en la captura"**.
+
+| Regla | Marca | Colapsan | Recall de 1.196 | Aviso desde la graduación (p10 / p50 / p90) |
+|---|---|---|---|---|
+| Reincidente | 435 | 359 (82,5 %; 11 sin resolver) | 30,0 % | 36 s / 129 s / 1.132 s |
+| **Señal principal O reincidente** | **866** | **781 (90,2 %)** | **65,3 %** | – |
+
+Un detalle sin verificar: una sola wallet que **no** es el creador (`8TPACXaK…`) retira liquidez
+en 12 tokens de creadores distintos. Puede ser una wallet de comisiones del launchpad o un
+operador. No lo he investigado.
+
+## 4b. La señal 1 y el patrón original [CAMBIA]
+
+- **Los seriales que gradúan > 50 %** (22 creadores) tienen 442 graduados, de los que
+  **289 colapsan (65,4 %)**. Con la métrica de la fase 3 eran 59.
+- **[RETIRO] mi hipótesis anterior.** Pensaba que el patrón original no se veía porque faltaban
+  swaps. **Con los swaps completos, la métrica de la fase 3 seguía viendo solo 60.** La causa era
+  la métrica (el pool de curva), no los swaps.
+- **"> 10 lanzamientos" a secas** marca 8.218 tokens, de los que colapsan 1.452 (17,7 %). No es
+  comparable con el 1,0 % anterior porque ahora el denominador incluye las curvas que vuelven a
+  cero. Sigue sin servir sola.
+- **La bimodalidad se mantiene:** 173 seriales no gradúan nada, 46 gradúan ≤ 10 %, 14 están entre
+  medias y 22 gradúan > 50 %.
+
+## 5. Discrepancia con Solami (`liquidity_usd` de dev-history)
+
+Muestra con semilla fija: 170 colapsados (70 A, 70 C, 30 B) y 100 graduados vivos al final según
+la fase 3 (pico ≥ 1.000 $, final > 5 $). Consultado 3,7 h después del fin de la captura. "Colapso
+según Solami" = `liquidity_usd` ≤ 5 $.
+
+| Métrica nuestra | Coinciden | Solami da MÁS | Solami da MENOS |
+|---|---|---|---|
+| Fase 3 (todos los pools) | 214 de 270 (79 %) | 22 | 34 |
+| **Negociable** | **240 de 270 (89 %)** | 23 | 7 |
+
+**Por qué falla cada dirección** (cada caso trazado con las reservas por posición on-chain):
+
+- **Solami da MÁS, 16 de 22: Solami se queda con el valor anterior al vaciado.**
+  - Casos: 12 del grupo A y 4 de C.
+  - Los eventos muestran un `liquidity remove` que deja el pool con 0,000 SOL. Aun así, Solami
+    devuelve 21–45 k$, que es ≈ 2 × nuestro pico (los dos lados del pool justo antes del tirón).
+  - 3,7 h después sigue sin actualizarse. **Afecta al 17 % de los rugs del grupo A.**
+  - **[RETIRO]** Dije que Solami "valora el lado del token a un precio que ya no existe". Tracé mal
+    ese caso: mi foto de pools iba por orden de llegada, y un swap del mismo segundo, anterior al
+    vaciado, llegaba después. Rehecho por posición on-chain, el pool está vacío.
+- **Solami da MÁS, 5 de 22: curvas vaciadas.** Solami las valora en 15–947 $, con 1–3 holders.
+  Nuestra curva está a 0.
+- **Solami da MÁS, 1 de 22:** 5,06 $ frente a 4,34 $. Está en el borde del umbral.
+- **Solami da MENOS, 31 de 34: el error era nuestro** (§0). Pool damm2 vacío y SOL varado en el
+  pool de curva. Con la métrica negociable, 27 pasan a coincidir.
+- **Solami da MENOS, 2 casos: Solami no ve el pool de pumpswap que abrió el creador.** Esos pools
+  tenían 1.295 y 1.521 SOL al final de la captura y Solami da 0,00–0,02 $. Son dos de los
+  "aportes simbólicos" de §1.
+- **Solami da MENOS, 1 caso:** sin explicar (11 SOL en damm2, Solami 2,23 $).
+
+**Para el README:**
+- El `liquidity_usd` de Solami **no sirve para detectar el tirón de liquidez**: en 1 de cada 6
+  casos del grupo A sigue mostrando el pool lleno horas después.
+- **Sí coincide** con los pools vaciados por ventas.
+- Nuestra métrica, con los pools de curva excluidos, coincide con Solami en el 89 % de la
+  muestra. Las discrepancias restantes van casi todas en la dirección "Solami no registra un
+  `remove`".
 
 ---
 
-## Conclusión
+## 6. Conclusión
 
-1. **Señal 1 (> 10 lanzamientos en 24 h) tal como está: no sirve sola.** Marca a 230 creadores
-   con una precisión del 1,0 % para colapsos, y 216 de ellos casi nunca gradúan (spam). **Sí
-   sirve combinada con "gradúa la mayor parte de lo que lanza"**: eso aísla a 12 creadores que
-   son exactamente el patrón original, confirmado por dev-history. El corte sale de una
-   distribución bimodal, no de un ajuste.
-2. **Señal 2 (colapso de liquidez): hay que partirla.** "≥ 1.000 $ → ≤ 5 $" mezcla tres cosas
-   (tirón de LP, curvas de pump.fun que vuelven a cero y un resto sin aclarar). Además discrepa
-   de Solami en ~1 de cada 3 casos de la muestra, en las dos direcciones.
-3. **Señal 3 (liquidez final repetida): no aparece** en estos datos; la final es ~0. La huella
-   de automatización es el aporte inicial idéntico (85 SOL), pero no discrimina por sí sola.
-4. **Señal nueva propuesta: "el creador aporta liquidez a su propio token recién lanzado".**
-   - 356 tokens la cumplen y **348 se vaciaron (97,8 %)**, de **345 wallets distintas**, con
-     **18.498 SOL netos extraídos** en 10,5 h.
-   - Se ve **~6 minutos antes** del tirón (p50 = 378 s).
-   - La señal 1 no ve a ninguno de ellos.
-   - No necesita umbral: es un hecho del evento (`liquidity.kind = add` con `provider` = creador
-     del mint).
+**Se mantiene:**
+1. **Señal principal** (el creador aporta liquidez a su propio token recién lanzado).
+   - 97,9 % de precisión y 99,1 % en los casos resueltos, con 431 wallets distintas.
+   - Aviso de ≥ 3 min en el 95 % de los casos.
+   - **Pero solo cubre el 35 % de los rugs de pool.**
+2. **El importe de 84,99 SOL**, como huella del operador, no como regla.
 
-Lo que no se puede responder con estos datos, y haría falta para cerrar la calibración:
-- Swaps de toda la vida de los tokens seguidos (hoy solo hay 40 min). Es la mejora ya anotada:
-  suscribirse a `swap` filtrado por los mints que seguimos.
-- Quién financia las wallets nuevas: el SOL nativo no está en los datos. Sin eso no se puede
-  saber si las 345 wallets son un solo operador.
-- Una fuente de verdad para "vaciado" que no dependa de cómo Solami valora `liquidity_usd`.
+**Retiro:**
+- La proporción de ventas como señal.
+- El total de 18.498 SOL.
+- La explicación anterior de la discrepancia con Solami.
+- "85 SOL = graduación de pump.fun".
+
+**Nuevo:**
+- La métrica de liquidez debe excluir el pool de curva tras la graduación. Sin eso, el patrón
+  original era invisible.
+- C1 (el creador retira la liquidez de migración) y C2 (dev dump) son el 61 % de los rugs de
+  pool. Ninguno avisa por su propio evento, pero "señal principal O reincidente" llega al
+  **90,2 % de precisión y 65,3 % de recall**, con un aviso p50 de 129 s en la parte
+  reincidente.
+
+**Sigue sin responder:**
+- Quién financia las wallets nuevas: el SOL nativo no está en los datos.
+- Si la reincidencia se sostiene con creadores que la captura no ve lanzar. La ventana es de
+  10 h; dev-history daría el histórico.
+
+## 7. Ingeniería (del `/health` de la noche)
+
+Detalle y acciones para la fase 4 en `CLAUDE.md`, sección "Pendiente para la fase 4".
+
+- **Memoria.** El store no es el problema:
+  - Retiene **84 MB** al final de la noche (**88 MB** con arranque en caliente), medido con GC
+    forzado cada 30 min.
+  - Crece ~7 MB/h solo por creadores, y debería estabilizarse a las 24 h.
+  - Lo que crece es `LiquidityHistory` en el cliente REST: cada re-consulta de un serial guarda
+    una lectura por cada token listado. Con la mezcla de peticiones de la noche son
+    **1,83 M lecturas ≈ 662 MB**, que es casi el heap que dio `/health` (668 MB).
+  - Esta medición es **sintética**: respuestas con la forma real de dev-history, pero con el
+    número de tokens estimado.
+  - **No se estabiliza** hasta el tope (~6 M lecturas, ~2 GB).
+- **404 (1.170):**
+  - Son `no creation record`: preguntamos antes de que Solami indexe el token.
+  - En vivo, 51 de 105 consultas lanzadas a 0–2 s dieron 404, y **las 51 dieron 200 a los
+    5–8 s**.
+  - Sin congestión serán más: el 77 % de los `new-creator` se enviarían a menos de 10 s de la
+    creación.
+- **Descartes de `new-creator` (1.044):**
+  - Con arranque en caliente (el proceso cargó el día anterior), el replay reproduce el volumen
+    real (27.804 peticiones frente a ~29.000).
+  - **El 67 % del presupuesto se va en re-consultar seriales**, 421 incluyendo los de ayer, cada
+    10 min, lancen o no.
+  - La espera de `new-creator` sube a p90 = 208 s.
+  - No reproduzco los 1.044 descartes exactos: la simulación no tiene latencia real ni 404.
+  - La señal principal **no necesita REST**. Si la fase 4 lo usa para creadores nuevos, primero
+    hay que limitar esas re-consultas.

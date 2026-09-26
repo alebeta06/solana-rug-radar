@@ -89,8 +89,12 @@ dado; los demás son los rangos observados, a calibrar en la fase 4.
     también de las reservas de los `swap` (`quote_reserve` tras la operación).
 19. dev-history: `ath_usd`/`ath_mcap_usd` pueden ser `null` (el esquema los acepta desde el
     2026-09-26). Lista **como máximo 100 tokens** aunque se pida `limit=200`.
-20. `liquidity_usd` de Solami puede valorar el lado del TOKEN a un precio que ya no existe: un
-    pool con ~0 SOL puede salir con 20–45 k$ (trazado 1 caso; ver `docs/ANALISIS_calibracion.md`).
+20. `liquidity_usd` de Solami NO registra un vaciado por `liquidity remove`: tras el tirón sigue
+    dando ≈ 2 × el pool previo (20–45 k$) horas después (16 de 170 colapsos muestreados; 12 de 70
+    del grupo "creador aporta y retira"). Sí refleja vaciados por ventas. Tampoco cuenta a veces
+    el pool de pumpswap que abre el creador. Detalle: `docs/ANALISIS_calibracion.md` §5.
+21. Tras migrar, meteora_dbc deja ~11–14 SOL en el pool de CURVA que nadie puede negociar. La
+    liquidez de un graduado debe excluir los pools de curva (ver "Pendiente para la fase 4").
 
 ## Endpoints
 
@@ -209,6 +213,44 @@ Una respuesta de dev-history rellena la identidad de TODOS los tokens del creado
 lectura de liquidez por token a `LiquidityHistory`. Peticiones concurrentes iguales se comparten;
 tras esperar turno en la cola se re-consulta la caché y, si hay acierto, se devuelve el turno (`refund`).
 
+## Pendiente para la fase 4 (medido el 2026-09-26 sobre la captura nocturna, NO arreglado)
+
+Salió del `/health` tras una noche (heap 668 MB, RSS 1.082 MB, 1.170 REST 404, 1.044
+`new-creator` caducados, espera media 283 s). Detalle y método en `docs/ANALISIS_calibracion.md` §7.
+
+1. **Memoria: la causa es `LiquidityHistory` (caché REST), no el store.** El store retiene
+   84–88 MB al final de la noche (replay con GC forzado, con y sin arranque en caliente) y crece
+   ~7 MB/h solo por creadores (retención 24 h: debería estabilizarse en ~170 MB). En cambio, cada
+   re-consulta de un serial añade UNA lectura por cada token que lista dev-history (hasta 100):
+   con la mezcla de peticiones de la noche (18.777 re-consultas) el cliente REST retiene
+   1,83 M lecturas ≈ **662 MB** (sintético: respuestas con la forma real, `rest-memory.ts`).
+   **No se estabiliza** hasta el tope (50.000 mints × 120 lecturas ≈ 6 M, ~2 GB). Opciones:
+   no guardar lectura si el valor no cambió, bajar `maxReadingsPerMint`, o no re-consultar
+   seriales inactivos (punto 3).
+2. **Los 404 son "demasiado pronto", no creadores sin registro.** Cuerpo:
+   `no creation record for <mint>`. Probado en vivo (105 tokens recién vistos): 51 dan 404 a
+   0–2 s del evento y **los 51 dan 200 al reintentar a 5–8 s**; ninguno falla después. Sin
+   congestión serán MUCHOS más: en la simulación el 77 % de los `new-creator` saldrían < 10 s
+   tras la creación. Arreglo: no despachar hasta ≥ 10 s tras el `block_time` (o reintentar una
+   vez un 404 pasado ese margen, sin gastar más presupuesto).
+3. **El presupuesto se lo comen las re-consultas de seriales.** `sweepSuspects` re-consulta
+   cada 10 min a TODOS los seriales, incluidos los del día anterior (se retienen 7 días y el
+   arranque en caliente los carga) aunque ya no lancen. Replay con arranque en caliente:
+   27.804 peticiones (≈ las ~29.000 reales), **67 % re-consultas de sospechosos**, 421 seriales
+   (252 sin arranque en caliente). Espera `new-creator`: p50 36 s, p90 208 s. La señal
+   principal nueva (§1 del análisis) dispara sobre creadores NUEVOS y **no necesita REST**;
+   pero si la fase 4 usa REST para ellos, hay que limitar las re-consultas (p. ej. solo
+   seriales con lanzamientos en la ventana) antes de reordenar prioridades.
+4. **La métrica de liquidez del store suma el pool de curva muerto.** `currentLiquidityUsd`
+   suma todos los pools; tras migrar, meteora_dbc deja ~11–14 SOL en el pool de curva que nadie
+   puede negociar, y un token con el pool damm2 vaciado sigue pareciendo "vivo" (~1.300–1.700 $).
+   Es justo el patrón original (150–213 holders, Solami a $1–5). Para graduados hay que usar solo
+   pools que no sean de curva (`CURVE_DEXES` en `src/calibration/capture.ts`).
+5. **`npm run analyze` lee en orden de nombre**: `firehose-*` antes que `lifecycle-*`, así que
+   con swaps de horas la mayoría llegan antes que su token y se descartan. El análisis usa
+   `src/calibration/capture.ts` (intercala por `block_time`). Mismo riesgo en cualquier replay
+   de `data/live` completo.
+
 ## Convenciones de código
 
 - TypeScript estricto, ESM, Node 24. `snake_case` solo en JSON crudo; `camelCase` tras el borde.
@@ -225,6 +267,8 @@ npm test              # vitest
 npm run test:coverage
 npm run build && npm start          # ingesta: directo con SOLAMI_API_KEY, replay sin ella
 npm run replay                      # comprobar data/*.jsonl contra el borde (exit 1 si hay rechazos)
-npm run analyze                     # replay de data/live por la memoria: seriales, colapsos, presupuesto REST
+npm run analyze                     # replay de data/live por la memoria (¡lee firehose antes que lifecycle!)
+node dist/calibration/extract.js 20260926 && node dist/calibration/report.js 20260926 --tradable
+                                    # calibración: replay intercalado por block_time → docs/ANALISIS_calibracion.md
 docker compose up --build           # ingesta en contenedor; health en localhost:8080/health
 ```

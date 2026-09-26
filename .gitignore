@@ -10,3 +10,6 @@ data/**/*.jsonl
 # Tooling
 .claude-flow/
 .swarm/
+
+# Calibration intermediates (npm run build && node dist/calibration/extract.js <capture>)
+data/calibration/
