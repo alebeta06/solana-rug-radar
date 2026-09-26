@@ -8,7 +8,8 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       // CLI entrypoints (process wiring, signals, printing): exercised by running them
       // (docker compose up, live smoke test), not unit-tested. Their logic lives in tested modules.
-      exclude: ['src/replay.ts', 'src/main.ts', 'src/analyze.ts', 'src/calibration.ts'],
+      // src/calibration/: offline analysis scripts run by hand on a capture, not production code.
+      exclude: ['src/replay.ts', 'src/main.ts', 'src/analyze.ts', 'src/calibration/**'],
       reporter: ['text', 'lcov', 'json-summary'],
       thresholds: { lines: 90, branches: 85, functions: 90, statements: 90 },
     },
