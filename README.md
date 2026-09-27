@@ -4,9 +4,13 @@ Real-time detection of **serial rug-pull operators** on Solana, built on
 [Solami](https://solami.dev)'s Blur data stream.
 Solami sidetrack, Colosseum Crypto World's Fair hackathon.
 
-> **Status: phase 4 of 5.** The detector runs on the live stream: structured red/amber alerts,
-> confirmed rugs, live precision in `/health`. Built on phase 1's normalization border, phase 2's
-> live ingestion and phase 3's bounded memory. The dashboard (phase 5) comes next.
+> **Status: complete (5 of 5 phases).** One command (`docker compose up --build`) starts the
+> radar and its dashboard at <http://localhost:8080/>. With a Solami key it watches the live
+> stream; without one it replays a real recorded hour through the same detector, labelled as a
+> replay. Red/amber alerts, confirmed drains and the lead between them, each rule's own measured
+> precision, and what the detector cannot see.
+
+![Dashboard, live on 2026-09-27: red and amber alerts, each followed by the drain it predicted](docs/dashboard-live.png)
 
 ## The problem
 
@@ -117,7 +121,11 @@ rule has none.
             │  red · amber · rug confirm  │    data/alerts/detector-YYYYMMDD.jsonl (live),
             │  tradable liquidity         │    re-read at startup
             └─────────────┬───────────────┘
-  phase 5                 ▼  dashboard
+  phase 5 ✅               ▼  same process, same node:http server as /health
+            ┌─────────────────────────────┐
+            │ Dashboard  GET /            │  one HTML page, no framework, polls every 1 s
+            │            GET /api/dashboard│  view model built (and tested) in src/dashboard/
+            └─────────────────────────────┘
 ```
 
 ### Design decisions
@@ -192,8 +200,52 @@ docker compose up --build
   saved in `./data/live/` (if any), connects to the live Blur stream, starts from the backfill
   and switches to realtime, enriching creators through the REST API at 1 req/s. The raw stream
   is saved to `./data/live/`.
-- **Without a key:** replays `./data/` plus the redacted real samples bundled in the image,
-  through the same pipeline and state (REST budget simulated), then exits. A jury needs nothing else.
+- **Without a key:** replays the bundled demo capture (`samples/demo-20260926.jsonl.gz`, below)
+  through the same pipeline, state and detector (REST budget simulated), 40× faster than real
+  time, and then keeps showing the final state. A jury needs nothing else.
+
+Then open **<http://localhost:8080/>**.
+
+### The dashboard
+
+One page, served by the same process (no framework, no build step, no second container). What
+it shows, in order of importance:
+
+1. **Warned before the drain** — the sequence the project exists for: the alert (red or amber,
+   with its rule's own measured precision on its tag), **how long before** the drain it came, and
+   the drain (time, $ before → after, what happened, the wallet that did it). Tokens and wallets
+   link to Solscan, so anyone can check.
+2. **Open alerts** — no drain yet, with their age and when the drain usually comes for that rule;
+   and alerts that got **no** drain within 60 min ("counts against precision").
+3. **Precision by rule**, never averaged: measured on the calibration night, and so far here.
+4. **What it does NOT see** — the 65.3 % coverage, the kind of rug it is blind to, and the drains
+   that got no warning, counted as they happen.
+5. **System** — stream state, events/s, tokens and creators in memory, REST budget, memory; and
+   the signals we tested and dropped, with the reason.
+
+Times are **event time** (block time). The badge in the corner says which of these it is, and
+they never look alike:
+
+| Badge | Meaning |
+|---|---|
+| 🟢 `LIVE · 02:12:32 UTC` | Connected to the live stream. Each alert shows how many seconds after its block we raised it (1–2 s in real time; more, and labelled, when it came from the backfill sent on connecting: its lead is measured from the block, so the real warning was that much shorter). |
+| `STARTING · not live yet` | Rebuilding memory from the last 24 h of saved stream before connecting (~2 min). |
+| `LIVE STREAM NOT CONNECTED` | Reconnecting; what is on screen is not current. |
+| `REPLAY · recorded 2026-09-26 · 40×` | A recording through the real detector, 40 times faster. The clock is the recording's. |
+| `REPLAY FINISHED` | Final state, frozen; nothing is arriving (no events/s). |
+| `DISCONNECTED` | The page cannot reach the process. |
+
+![Dashboard replaying the bundled capture at 40×](docs/dashboard-replay.png)
+
+**The demo capture.** Every raw frame (34,744, key-free, 7.3 MB gzip) of 17 tokens from the
+2026-09-26 night, 13:28–15:10 UTC, built by `src/calibration/demo.ts`. It shows the limits, not
+only the hits: 10 red alerts drained 86 s to 9 min later; creators whose **first** drain (a dev
+dump, a migration pull) nobody could see coming, followed by an amber on their next token; and an
+amber that was **not** drained. It plays in ~2.5 min at 40× (`REPLAY_SPEED`, 0 = as fast as
+possible). A CI test replays it and requires the phase-4 validation's records for those tokens,
+the same at 1× and 20×. Left out: the night's red alerts that never drained. They are healthy,
+busy tokens (the three measured: 22–31k swaps over hours; that is why they did not drain), too
+big to bundle.
 
 Alerts and confirmed rugs print as they happen:
 
@@ -224,7 +276,7 @@ PERSIST_FIREHOSE_MAX_MB=5120     # 5 GB ≈ 2 hours of swaps + transfers
 ```
 
 Other options: `INGEST_SOURCE=live|replay` forces the origin; `REPLAY_PATHS=a.jsonl,dir/` picks
-what to replay. Everything else (types, backfill, reconnect backoff, queue size) is in
+what to replay (`.jsonl` and `.jsonl.gz`; default `samples`); `REPLAY_SPEED` sets its pace. Everything else (types, backfill, reconnect backoff, queue size) is in
 `config/config.json`.
 
 Local development:
@@ -258,11 +310,14 @@ src/ingest/             source.ts (EventSource + FrameProcessor) · live-source.
 src/state/              store.ts (StateStore) · token-state.ts · creator-state.ts · pending.ts · order.ts
                         quote-prices.ts · scheduler.ts + enricher.ts (REST policy) · warm-start.ts · factory.ts
 src/detector/           detector.ts (red, amber, rug confirmation) · types.ts (records) · registry.ts (JSONL) · factory.ts
+src/dashboard/          view.ts (what the page shows, tested) · feed.ts (recent records) · page.ts (the HTML page)
 src/calibration/        offline calibration and validation on a capture (capture.ts, extract.ts, report.ts, validate.ts…)
 src/config.ts           config loader
-src/main.ts             entrypoint: ingestion + state + detector
+src/main.ts             entrypoint: ingestion + state + detector + dashboard
 src/replay.ts           offline check of captures
 src/analyze.ts          offline replay through the state (calibration material for phase 4)
+samples/                demo-20260926.jsonl.gz: the demo capture (real frames, no key)
 tests/                  vitest suites + tests/fixtures (redacted real frames)
+docs/dashboard-*.png    the dashboard, live and in replay
 docs/RESUMEN_Fase_*.md  design rationale per phase, decision by decision (Spanish)
 ```

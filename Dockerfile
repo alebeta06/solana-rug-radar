@@ -14,11 +14,12 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY config ./config
-# Redacted real frames, so the replay (plan B, no API key) works for anyone cloning the repo:
-# raw captures in ./data are git-ignored because they embed the API key.
-COPY tests/fixtures/events.jsonl tests/fixtures/stream-sample.jsonl ./samples/
+# The demo capture (real frames of 17 tokens of the 2026-09-26 night, key-free, built by
+# src/calibration/demo.ts), so a jury without an API key sees the real detector at work.
+# Raw captures in ./data are git-ignored because they embed the API key.
+COPY samples ./samples
 USER node
 EXPOSE 8080
-# Phase 2: ingestion. Live Blur stream when SOLAMI_API_KEY is set; otherwise replays
-# ./data (mounted, optional) + the bundled samples through the same pipeline.
+# Live Blur stream when SOLAMI_API_KEY is set; otherwise replays the demo capture at 40× through
+# the same pipeline and keeps the dashboard up. Dashboard: http://localhost:8080/
 CMD ["node", "dist/main.js"]

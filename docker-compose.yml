@@ -1,10 +1,10 @@
 # One command: `docker compose up --build`
 #
-# Phase 2 runs the ingestion:
 # - with SOLAMI_API_KEY in .env → live Blur stream (backfill, reconnection, persistence)
-# - without it → replays ./data + the bundled samples through the same pipeline, then exits
+# - without it → replays the bundled demo capture (2026-09-26) at 40× through the same pipeline
+#   and detector, then keeps showing the final state
 #
-# Health: http://localhost:8080/health · Stop: Ctrl+C (closes the socket, flushes disk)
+# Dashboard: http://localhost:8080/ · Health: /health · Stop: Ctrl+C (closes the socket, flushes disk)
 # Raw stream is persisted to ./data/live with conservative caps (1 GB lifecycle + 500 MB
 # swap/transfer). Raise them in .env: PERSIST_LIFECYCLE_MAX_MB / PERSIST_FIREHOSE_MAX_MB.
 services:

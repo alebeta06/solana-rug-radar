@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { request } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { unixMillis } from '../../src/core/time.js';
 import type { SolamiEvent } from '../../src/events/types.js';
@@ -79,6 +80,52 @@ describe('ReplaySource', () => {
     expect(replay.health().malformed.invalidJson).toBe(0);
     expect(items).toHaveLength(2);
     expect(items[0]).toMatchObject({ type: 'token_create', name: 'MXM two lines' });
+  });
+
+  it('reads .jsonl.gz transparently: the same file plain and compressed gives exactly the same frames', async () => {
+    const plain = join(dir, 'gz-check', 'sample.jsonl');
+    mkdirSync(join(dir, 'gz-check'));
+    // Real frames plus a name with U+2028 and multi-byte characters, which must survive gunzip chunking.
+    const tokenCreate = SESSION.find((line) => line.includes('"type":"token_create"')) ?? '';
+    const text = `${readFileSync(STREAM_SAMPLE_PATH, 'utf8')}${tokenCreate.replace(/"name":"[^"]*"/, '"name":"ñandú 🚀\u2028two"').replace(/"signature":"[^"]*"/, '"signature":"gz-unique"')}\n`;
+    writeFileSync(plain, text);
+    writeFileSync(`${plain}.gz`, gzipSync(text));
+    expect(expandJsonlPaths([join(dir, 'gz-check')]).map((p) => p.slice(dir.length))).toEqual(['/gz-check/sample.jsonl', '/gz-check/sample.jsonl.gz']);
+    const read = async (path: string) => {
+      const replay = new ReplaySource({ paths: [path], dedupWindowPerType: 1000, warn: () => {} });
+      const { items, done } = collect(replay.events());
+      await done;
+      return { events: items.map(comparable), health: replay.health() };
+    };
+    const [a, b] = [await read(plain), await read(`${plain}.gz`)];
+    rmSync(join(dir, 'gz-check'), { recursive: true });
+    expect(a.events.length).toBeGreaterThan(200);
+    expect(b.events).toEqual(a.events);
+    expect(b.health.frames).toBe(a.health.frames);
+    expect(b.health.malformed).toEqual(a.health.malformed);
+    expect(b.events.at(-1)).toContain('ñandú 🚀\u2028two');
+  });
+
+  it('paces delivery on event time at `speed`, and not at all at speed 0', async () => {
+    const tokenCreate = SESSION.find((line) => line.includes('"type":"token_create"')) ?? '';
+    const at = (t: number, sig: string) => tokenCreate.replace(/"block_time":\d+/, `"block_time":${t}`).replace(/"signature":"[^"]*"/, `"signature":"${sig}"`);
+    const file = join(dir, 'paced.jsonl');
+    writeFileSync(file, [at(1_790_000_000, 'a'), at(1_790_000_010, 'b'), at(1_790_000_005, 'late'), at(1_790_000_030, 'c')].join('\n'));
+    const run = async (speed: number) => {
+      let wall = 5_000;
+      const sleeps: number[] = [];
+      const replay = new ReplaySource({
+        paths: [file], dedupWindowPerType: 1000, speed, clock: () => unixMillis(wall),
+        sleep: (ms) => { sleeps.push(ms); wall += ms; return Promise.resolve(); },
+      });
+      const { items, done } = collect(replay.events());
+      await done;
+      return { sleeps, received: items.map((e) => Number(e.receivedAt)) };
+    };
+    // 10×: +10 s of event time → 1 s; the late frame is not delayed; +30 s → 3 s after the first.
+    expect(await run(10)).toEqual({ sleeps: [1000, 2000], received: [5000, 6000, 6000, 8000] });
+    expect(await run(0)).toEqual({ sleeps: [], received: [5000, 5000, 5000, 5000] });
+    rmSync(file);
   });
 
   it('close() stops the replay early', async () => {

@@ -1,6 +1,6 @@
 /**
- * Observable health: `GET /health` (JSON; 200 healthy, 503 not) for Docker and the phase-5
- * dashboard, plus a one-line summary for the periodic log.
+ * Observable health: `GET /health` (JSON; 200 healthy, 503 not) for Docker, plus a one-line
+ * summary for the periodic log. The same server serves the phase-5 dashboard (`routes`).
  */
 import { createServer, type Server } from 'node:http';
 import { elapsedMillis, type Clock, type UnixMillis } from '../core/time.js';
@@ -36,16 +36,32 @@ export function summarizeHealth(health: SourceHealth, now: UnixMillis): string {
   return parts.filter(Boolean).join(' ');
 }
 
-/** `getState`: what the memory knows (phase 3), served under `state`. */
+/** A GET route served next to /health (the phase-5 dashboard: its page and its data). */
+export type Route = () => { readonly type: string; readonly body: string };
+
+/** `getState`: what the memory knows (phase 3), served under `state`. `routes`: path → extra GET route. */
 export function startHealthServer(
   port: number,
   getHealth: () => SourceHealth,
   clock: Clock,
   staleAfterMs: number,
   getState?: () => unknown,
+  routes: Readonly<Record<string, Route>> = {},
 ): Promise<Server> {
   const server = createServer((req, res) => {
-    if (req.method !== 'GET' || req.url !== '/health') {
+    const path = (req.url ?? '').split('?')[0] ?? '';
+    const route = Object.hasOwn(routes, path) ? routes[path] : undefined;
+    if (req.method === 'GET' && route !== undefined) {
+      try {
+        const { type, body } = route();
+        res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' }).end(body);
+      } catch (error) {
+        // A bug in a view must never take the detector down with it.
+        res.writeHead(500, { 'content-type': 'text/plain' }).end(error instanceof Error ? error.message : 'error');
+      }
+      return;
+    }
+    if (req.method !== 'GET' || path !== '/health') {
       res.writeHead(404).end();
       return;
     }

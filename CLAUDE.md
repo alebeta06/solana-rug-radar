@@ -17,7 +17,7 @@ creador. Sus endpoints son fotos; nosotros hacemos la película.
 2. ✅ Ingesta del WebSocket (reconexión, backfill, dedup, contrapresión, persistencia, salud)
 3. ✅ Máquina de estados por token / creador (memoria acotada, `src/state/`)
 4. ✅ Detector (`src/detector/`): alertas roja/ámbar, rugs confirmados, registro JSONL
-5. Dashboard
+5. ✅ Dashboard (`src/dashboard/`): una página en el mismo `node:http` de `/health`
 
 ## Reglas de detección (fase 4) — salen de la calibración, NO del prompt original
 
@@ -149,6 +149,8 @@ con el payload en `raw: unknown` (cuarentena).
   `LiveSource` (WebSocket) y `ReplaySource` (JSONL). Ambos pasan cada trama por el mismo
   `FrameProcessor` (parse sin pérdida → normalizar → dedup). Las fases 3–5 no saben el origen.
   `src/main.ts` usa directo si hay `SOLAMI_API_KEY`, replay si no (`INGEST_SOURCE` lo fuerza).
+  Replay por defecto: `samples/` (la captura demo); lee `.jsonl` y `.jsonl.gz`; `REPLAY_SPEED`
+  (40× por defecto, 0 = sin pausa) espacia la entrega en tiempo de evento.
 - **Dedup** (`dedup.ts`), clave elegida con 181k eventos reales:
   tx (swap, transfer, token_create, pool_create) = `signature|ix_index|inner_ix_index|mint`
   (liquidity usa `base_mint`). **Sin el mint falla**: una instrucción de swap emite DOS eventos,
@@ -231,6 +233,28 @@ tras esperar turno en la cola se re-consulta la caché y, si hay acierto, se dev
   `liveResolveMinutes` (60; un rug posterior la voltea), abierta. En tiempo de evento.
 - Memoria tras la noche: store + detector 82 MB; cachés REST 88 MB (antes 662 MB).
 
+## Dashboard (fase 5, `src/dashboard/`)
+
+- `GET /` (página: un HTML en `page.ts`, sin framework ni build, sondea cada 1 s) y
+  `GET /api/dashboard` (el modelo de vista de `view.ts`, testeado). Mismo proceso y servidor que
+  `/health`. Una ruta que falla responde 500 y no tumba el proceso.
+- Orden: secuencias alerta → vaciado con el aviso; alertas abiertas y no confirmadas; precisión
+  por regla (medida y en vivo, nunca promediada); lo que NO ve (65,3 %) con los vaciados sin
+  aviso; sistema; señales descartadas.
+- **Tiempo de evento** en toda la vista (reloj = marca de agua). Modos que no se confunden:
+  LIVE / STARTING (arranque en caliente, ~2 min, sin edades de alertas) / NOT CONNECTED /
+  REPLAY (fecha de la grabación, factor, reloj del evento) / REPLAY FINISHED (sin eventos/s).
+  Al terminar un replay el proceso sigue sirviendo el estado final hasta Ctrl+C.
+- `Feed` guarda los registros recientes (acotado); en vivo se siembra del registro: "en vivo"
+  incluye los 7 días recargados, y la pantalla lo dice.
+- **Captura demo** `samples/demo-20260926.jsonl.gz` (`src/calibration/demo.ts`): todas las tramas
+  de 17 tokens de la noche, 13:28–15:10, sin clave (verificado con grep `sk_`). Test de CI: reproduce
+  los registros de la validación de la fase 4 (salvo `peakUsd`, ±0,5 %: el precio de SOL se estima
+  con TODOS los swaps de la noche; medido ≤ 0,15 %), igual a 1× y 20×, y el reloj acaba en el
+  último `block_time`. Las rojas fallidas de la noche no caben (tokens sanos de 20–30k swaps).
+- Única dependencia de reloj de pared en el camino de detección: el tope de la marca de agua
+  (`receivedAt + 60 s`), que en un replay de una captura pasada nunca actúa.
+
 ## Pendiente (medido el 2026-09-26; lo que NO se arregló en la fase 4)
 
 Arreglado en la fase 4: `LiquidityHistory` eliminado (memoria), no consultar un mint con
@@ -249,6 +273,10 @@ Arreglado en la fase 4: `LiquidityHistory` eliminado (memoria), no consultar un 
 4. **`npm run analyze` y el replay de `npm start` leen en orden de nombre**: `firehose-*` antes
    que `lifecycle-*`. Con swaps de horas, usar `src/calibration/capture.ts` (intercala por
    `block_time`).
+5. **Visto en directo el 2026-09-27, sin verificar la causa:** justo tras arrancar, un vaciado del
+   operador rojo salió como `migration-pull` (su aporte de 84,99 SOL fue probablemente antes de
+   conectar: sin roja previa no se sabe que la liquidez era suya).
+6. **Un vaciado con el proceso parado no se ve**: su alerta acaba como "no confirmada".
 
 ## Convenciones de código
 
@@ -270,5 +298,6 @@ npm run analyze                     # replay de data/live por la memoria (¡lee 
 node dist/calibration/extract.js 20260926 && node dist/calibration/report.js 20260926 --tradable
                                     # calibración: replay intercalado por block_time → docs/ANALISIS_calibracion.md
 node --expose-gc dist/calibration/validate.js 20260926   # la noche entera por el detector vs el análisis (~25 min)
-docker compose up --build           # ingesta en contenedor; health en localhost:8080/health
+docker compose up --build           # radar + dashboard en localhost:8080/ (health en /health)
+node dist/calibration/demo.js       # regenerar samples/demo-20260926.jsonl.gz desde data/live
 ```

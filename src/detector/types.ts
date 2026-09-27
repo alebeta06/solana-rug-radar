@@ -114,3 +114,4 @@ export interface DetectorStats {
 }
 
 export const tokenUrl = (mint: string) => `https://solscan.io/token/${mint}`;
+export const accountUrl = (wallet: string) => `https://solscan.io/account/${wallet}`;

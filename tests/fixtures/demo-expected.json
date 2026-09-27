@@ -1,0 +1,934 @@
+[
+ {
+  "kind": "alert",
+  "id": "red:7bNueUQTmVagnov88Pj5CUY4mVN3izSuyxQbd87Fmoon",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "7bNueUQTmVagnov88Pj5CUY4mVN3izSuyxQbd87Fmoon",
+  "creator": "5YxFy5AqQ2d3A4vhjgniCkX4M6SQtRdJv9zroKoQgZjE",
+  "at": 1790430029,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "A5ZPybCvGewpFeeRWUpZVxBc5pGSoTnYxiBdjayTPvjR",
+   "dex": "pumpswap",
+   "signature": "5uQ88NBY7XaMrDYU5bkwte5iMzoC8e6rkG6HNYbN1X1BXwWNmZqPjzDUV6NmYfc1ge1Xdtr64HHjSVjQ9YmJr6ZT",
+   "slot": 450690746,
+   "txIndex": 918,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/7bNueUQTmVagnov88Pj5CUY4mVN3izSuyxQbd87Fmoon"
+ },
+ {
+  "kind": "rug",
+  "mint": "9F8fWC1DaUprEDiQckD8UHncBQKG1azudu9dxTWCnPbM",
+  "creator": "6RoKmKjhD1T97F9QnScNjgDg8Jy6JKV6JB3bqiwM7niX",
+  "at": 1790430207,
+  "origin": "realtime",
+  "mechanism": "dev-dump",
+  "trigger": {
+   "type": "swap",
+   "actor": "6RoKmKjhD1T97F9QnScNjgDg8Jy6JKV6JB3bqiwM7niX",
+   "pool": "3GyzhWCPYooCys5QuVtVCsLBPNp7BQ4mQygT9ffCd3QU",
+   "dex": "meteora_damm2",
+   "signature": "hAt3HsYTUCcWYjim9EYt2dxadU9cFB7q82e1fSiueM37bVdb9P3FZM8nw64iJX1CReNZBmtgywPBQMiQenMAjGo",
+   "slot": 450691410,
+   "txIndex": 722,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "1475.37",
+  "lastUsd": "0.98",
+  "alerts": [],
+  "url": "https://solscan.io/token/9F8fWC1DaUprEDiQckD8UHncBQKG1azudu9dxTWCnPbM"
+ },
+ {
+  "kind": "rug",
+  "mint": "CgqM4NtkPU8xuHytmZzPYSsY4zYkWYdjfFVjv6f4BJvg",
+  "creator": "8op9AiHF5wZXTSMJKwSXu81yu4KxNfJX2zHcwtnHhQ1o",
+  "at": 1790430316,
+  "origin": "realtime",
+  "mechanism": "dev-dump",
+  "trigger": {
+   "type": "swap",
+   "actor": "8op9AiHF5wZXTSMJKwSXu81yu4KxNfJX2zHcwtnHhQ1o",
+   "pool": "Fx81meAPt2P6YmckqLZiN4ga7YvK7iAZqcSshTLsP7cD",
+   "dex": "meteora_damm2",
+   "signature": "4LD1Q1bu458QNtTpUsKWqu3WMk1N4PSX1Kd71J8mD8bPfA6RkJHsjySATenWHw2B5zPF4E368pmhisLRZrAYxYUb",
+   "slot": 450691817,
+   "txIndex": 533,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "1892.57",
+  "lastUsd": "1.85",
+  "alerts": [],
+  "url": "https://solscan.io/token/CgqM4NtkPU8xuHytmZzPYSsY4zYkWYdjfFVjv6f4BJvg"
+ },
+ {
+  "kind": "alert",
+  "id": "red:BjcuNML6Ymu4Umn8niDrx1zfVJd2yqFnUUpEtiAn1SSi",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "BjcuNML6Ymu4Umn8niDrx1zfVJd2yqFnUUpEtiAn1SSi",
+  "creator": "GT2whhCHo23hPKdssY5R8Jm5sad6tZJVJYPpBGBVH9fh",
+  "at": 1790430341,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "AtHf2cxN66vuL5NaGkHYG8h1GFktXW9aAAVy5AcjM6QM",
+   "dex": "pumpswap",
+   "signature": "5eiwKBk3uWkcKvGXF7awuZHcpVGugnvPFFs5XMEVLWTshjPDYMcRZePGH3ciCUBWHpDLMipj6Y2CFo3ccCeMHxrR",
+   "slot": 450691912,
+   "txIndex": 1020,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/BjcuNML6Ymu4Umn8niDrx1zfVJd2yqFnUUpEtiAn1SSi"
+ },
+ {
+  "kind": "alert",
+  "id": "red:Fi2mEFbQdcYoSLQgv6XB9AitdZvNe71HPwmoQG1o7RoL",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "Fi2mEFbQdcYoSLQgv6XB9AitdZvNe71HPwmoQG1o7RoL",
+  "creator": "J8oEbwnfN9EviirG9sTxnq7CHtQFxYcKZv34zQ4NuTNG",
+  "at": 1790430406,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "94gZMrC5dZFUoJakquNNfkrkvatBAJyw7dZPmLjGrpJx",
+   "dex": "pumpswap",
+   "signature": "4KfuagomERWXnKGeMJ2xQEc82g8jwTSQaFMHfiDSmn1YY8rkSkunmT9WpoSSx8x35Rna1KGaqEATUCiQ2jWxrLr5",
+   "slot": 450692158,
+   "txIndex": 831,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/Fi2mEFbQdcYoSLQgv6XB9AitdZvNe71HPwmoQG1o7RoL"
+ },
+ {
+  "kind": "alert",
+  "id": "amber:Cwa9hYKgX7mEcvFRCjFfHV4YSYhFKYCWxLNwSU6cVmUu",
+  "level": "amber",
+  "rule": "repeat-rugger",
+  "mint": "Cwa9hYKgX7mEcvFRCjFfHV4YSYhFKYCWxLNwSU6cVmUu",
+  "creator": "8op9AiHF5wZXTSMJKwSXu81yu4KxNfJX2zHcwtnHhQ1o",
+  "at": 1790430443,
+  "origin": "realtime",
+  "trigger": {
+   "type": "graduation",
+   "pool": "HJoLfieJuuUZUo171fc6pN9jTUwHwwrqqH8NSVAhrj64",
+   "dex": "meteora_damm2",
+   "signature": null,
+   "slot": 450692296,
+   "txIndex": null,
+   "ixIndex": null,
+   "innerIxIndex": null
+  },
+  "evidence": {
+   "priorRugs": [
+    {
+     "mint": "CgqM4NtkPU8xuHytmZzPYSsY4zYkWYdjfFVjv6f4BJvg",
+     "at": 1790430316,
+     "mechanism": "dev-dump"
+    }
+   ],
+   "priorRugCount": 1
+  },
+  "confidence": {
+   "precision": 0.825287356321839,
+   "confirmed": 359,
+   "fired": 435,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/Cwa9hYKgX7mEcvFRCjFfHV4YSYhFKYCWxLNwSU6cVmUu"
+ },
+ {
+  "kind": "rug",
+  "mint": "Cwa9hYKgX7mEcvFRCjFfHV4YSYhFKYCWxLNwSU6cVmUu",
+  "creator": "8op9AiHF5wZXTSMJKwSXu81yu4KxNfJX2zHcwtnHhQ1o",
+  "at": 1790430511,
+  "origin": "realtime",
+  "mechanism": "dev-dump",
+  "trigger": {
+   "type": "swap",
+   "actor": "8op9AiHF5wZXTSMJKwSXu81yu4KxNfJX2zHcwtnHhQ1o",
+   "pool": "HJoLfieJuuUZUo171fc6pN9jTUwHwwrqqH8NSVAhrj64",
+   "dex": "meteora_damm2",
+   "signature": "26XUj4mGSaNXZ2PSZ1FqgeRWEafa6mLdb37HaqT7y6CwvSRWoy3zNGmLAwZxHcPnbdRZU5HrrEaEgQfPXh3QukU8",
+   "slot": 450692552,
+   "txIndex": 1840,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "1519.53",
+  "lastUsd": "1.49",
+  "alerts": [
+   {
+    "id": "amber:Cwa9hYKgX7mEcvFRCjFfHV4YSYhFKYCWxLNwSU6cVmUu",
+    "level": "amber",
+    "at": 1790430443,
+    "leadSeconds": 68
+   }
+  ],
+  "url": "https://solscan.io/token/Cwa9hYKgX7mEcvFRCjFfHV4YSYhFKYCWxLNwSU6cVmUu"
+ },
+ {
+  "kind": "rug",
+  "mint": "7bNueUQTmVagnov88Pj5CUY4mVN3izSuyxQbd87Fmoon",
+  "creator": "5YxFy5AqQ2d3A4vhjgniCkX4M6SQtRdJv9zroKoQgZjE",
+  "at": 1790430571,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "5YxFy5AqQ2d3A4vhjgniCkX4M6SQtRdJv9zroKoQgZjE",
+   "pool": "A5ZPybCvGewpFeeRWUpZVxBc5pGSoTnYxiBdjayTPvjR",
+   "dex": "pumpswap",
+   "signature": "3YzyVdaS5GeEejvRAwkL5oZ4JKLbcVvzsewiXNPtYuNxdjbS9snq4yVKcMztEFeJQZnfFM7jeuYE4xu5gsSgXaov",
+   "slot": 450692775,
+   "txIndex": 898,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "11903.68",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:7bNueUQTmVagnov88Pj5CUY4mVN3izSuyxQbd87Fmoon",
+    "level": "red",
+    "at": 1790430029,
+    "leadSeconds": 542
+   }
+  ],
+  "url": "https://solscan.io/token/7bNueUQTmVagnov88Pj5CUY4mVN3izSuyxQbd87Fmoon"
+ },
+ {
+  "kind": "rug",
+  "mint": "Gf9hX5c6E2k78kmMuvB8qc5hWMEyXTrnJ8GwRVpeHfv9",
+  "creator": "GRiHgTqBF7zeTjhTkPQ8kfxNDWF1JXxNjEikrA7HpwvH",
+  "at": 1790430636,
+  "origin": "realtime",
+  "mechanism": "migration-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "GRiHgTqBF7zeTjhTkPQ8kfxNDWF1JXxNjEikrA7HpwvH",
+   "pool": "Ho5Cke1vcypsscF79vcMboML9tpH9teerGJwupe9zrLK",
+   "dex": "pumpswap",
+   "signature": "9G4s9cNqx35CdssNLg3EixzLhiWWaBAUuXzdHgyn4QgeFKjJPDn7RLdUAm83nHaKKftQKDchamsiULbBewWr2wp",
+   "slot": 450693015,
+   "txIndex": 115,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "12443.16",
+  "lastUsd": "0.00",
+  "alerts": [],
+  "url": "https://solscan.io/token/Gf9hX5c6E2k78kmMuvB8qc5hWMEyXTrnJ8GwRVpeHfv9"
+ },
+ {
+  "kind": "alert",
+  "id": "amber:9zSsWtdEJ3FTqziW14HvdTDa7wAZtCzZ6d5AZ65YtH8u",
+  "level": "amber",
+  "rule": "repeat-rugger",
+  "mint": "9zSsWtdEJ3FTqziW14HvdTDa7wAZtCzZ6d5AZ65YtH8u",
+  "creator": "GRiHgTqBF7zeTjhTkPQ8kfxNDWF1JXxNjEikrA7HpwvH",
+  "at": 1790430643,
+  "origin": "realtime",
+  "trigger": {
+   "type": "graduation",
+   "pool": "FNcurKuNgNXnFFg5JnUdnntLBYTHx1JiNeapYTJzoo7H",
+   "dex": "meteora_damm2",
+   "signature": null,
+   "slot": 450693043,
+   "txIndex": null,
+   "ixIndex": null,
+   "innerIxIndex": null
+  },
+  "evidence": {
+   "priorRugs": [
+    {
+     "mint": "Gf9hX5c6E2k78kmMuvB8qc5hWMEyXTrnJ8GwRVpeHfv9",
+     "at": 1790430636,
+     "mechanism": "migration-pull"
+    }
+   ],
+   "priorRugCount": 1
+  },
+  "confidence": {
+   "precision": 0.825287356321839,
+   "confirmed": 359,
+   "fired": 435,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/9zSsWtdEJ3FTqziW14HvdTDa7wAZtCzZ6d5AZ65YtH8u"
+ },
+ {
+  "kind": "rug",
+  "mint": "BjcuNML6Ymu4Umn8niDrx1zfVJd2yqFnUUpEtiAn1SSi",
+  "creator": "GT2whhCHo23hPKdssY5R8Jm5sad6tZJVJYPpBGBVH9fh",
+  "at": 1790430694,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "GT2whhCHo23hPKdssY5R8Jm5sad6tZJVJYPpBGBVH9fh",
+   "pool": "AtHf2cxN66vuL5NaGkHYG8h1GFktXW9aAAVy5AcjM6QM",
+   "dex": "pumpswap",
+   "signature": "3Z5aLfnTawsUGQNt8T4PaZ8yfqvDDkKSE1Ejt5BDff6TGvNaRarfR2AteBVs7TzJ6HkEXZE99cecSR33kQ8kviCp",
+   "slot": 450693233,
+   "txIndex": 304,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "10753.04",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:BjcuNML6Ymu4Umn8niDrx1zfVJd2yqFnUUpEtiAn1SSi",
+    "level": "red",
+    "at": 1790430341,
+    "leadSeconds": 353
+   }
+  ],
+  "url": "https://solscan.io/token/BjcuNML6Ymu4Umn8niDrx1zfVJd2yqFnUUpEtiAn1SSi"
+ },
+ {
+  "kind": "rug",
+  "mint": "Fi2mEFbQdcYoSLQgv6XB9AitdZvNe71HPwmoQG1o7RoL",
+  "creator": "J8oEbwnfN9EviirG9sTxnq7CHtQFxYcKZv34zQ4NuTNG",
+  "at": 1790430883,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "J8oEbwnfN9EviirG9sTxnq7CHtQFxYcKZv34zQ4NuTNG",
+   "pool": "94gZMrC5dZFUoJakquNNfkrkvatBAJyw7dZPmLjGrpJx",
+   "dex": "pumpswap",
+   "signature": "3CtwrjepjKkfThUExss5Vgfkqn4mMM1HUDR7csUfN4E1rWxX2sbKee8jwvzZ22xsguNBagX8PxPsKzHLC2NtMqvP",
+   "slot": 450693941,
+   "txIndex": 513,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "11504.51",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:Fi2mEFbQdcYoSLQgv6XB9AitdZvNe71HPwmoQG1o7RoL",
+    "level": "red",
+    "at": 1790430406,
+    "leadSeconds": 477
+   }
+  ],
+  "url": "https://solscan.io/token/Fi2mEFbQdcYoSLQgv6XB9AitdZvNe71HPwmoQG1o7RoL"
+ },
+ {
+  "kind": "alert",
+  "id": "red:JiAxUkiE15oqMYeckiTqrVH3DqpF5Zot5nHcYyFcpso",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "JiAxUkiE15oqMYeckiTqrVH3DqpF5Zot5nHcYyFcpso",
+  "creator": "3JhnBAoMBbaVa5tLR8dU6Ea1tjewHEzcwJxEBg7ssBNa",
+  "at": 1790430937,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "5Aj1Zs7joFyGKEEhyPutQ6sGEskoHAawbpzrqmF3bzt4",
+   "dex": "pumpswap",
+   "signature": "25VppgiGMgM3oqpDNtAbHovt4tHcbb8jtVD432Xanc1Nu8FgqpXN4AD7Ectm9yWA7zeaFEgsWhB2gC8CK3kikmUM",
+   "slot": 450694142,
+   "txIndex": 218,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/JiAxUkiE15oqMYeckiTqrVH3DqpF5Zot5nHcYyFcpso"
+ },
+ {
+  "kind": "alert",
+  "id": "amber:FMbbdNJNykhRR7TR5BkFZUxjBHNNRR7QbP6BeReA8bQG",
+  "level": "amber",
+  "rule": "repeat-rugger",
+  "mint": "FMbbdNJNykhRR7TR5BkFZUxjBHNNRR7QbP6BeReA8bQG",
+  "creator": "6RoKmKjhD1T97F9QnScNjgDg8Jy6JKV6JB3bqiwM7niX",
+  "at": 1790431031,
+  "origin": "realtime",
+  "trigger": {
+   "type": "graduation",
+   "pool": "FYCUffRWxj4fcvJbAhVHTPDHgzjgaCFQUWYmop3fCnyH",
+   "dex": "meteora_damm2",
+   "signature": null,
+   "slot": 450694492,
+   "txIndex": null,
+   "ixIndex": null,
+   "innerIxIndex": null
+  },
+  "evidence": {
+   "priorRugs": [
+    {
+     "mint": "9F8fWC1DaUprEDiQckD8UHncBQKG1azudu9dxTWCnPbM",
+     "at": 1790430207,
+     "mechanism": "dev-dump"
+    }
+   ],
+   "priorRugCount": 1
+  },
+  "confidence": {
+   "precision": 0.825287356321839,
+   "confirmed": 359,
+   "fired": 435,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/FMbbdNJNykhRR7TR5BkFZUxjBHNNRR7QbP6BeReA8bQG"
+ },
+ {
+  "kind": "rug",
+  "mint": "9zSsWtdEJ3FTqziW14HvdTDa7wAZtCzZ6d5AZ65YtH8u",
+  "creator": "GRiHgTqBF7zeTjhTkPQ8kfxNDWF1JXxNjEikrA7HpwvH",
+  "at": 1790431302,
+  "origin": "realtime",
+  "mechanism": "migration-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "GRiHgTqBF7zeTjhTkPQ8kfxNDWF1JXxNjEikrA7HpwvH",
+   "pool": "GXLw7aqwreaF7LXw4ME5NTyKcN8M89HEsnoGKXmRrmzh",
+   "dex": "pumpswap",
+   "signature": "3s7aPnHHxy6s7zpDoKaHQZCK4fWLuSjmXFHw5u6PEsdih7mqLWrMpoofWuht8aazzCWbnEwyMg11VgH7MM9tVRzg",
+   "slot": 450695500,
+   "txIndex": 1080,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "12821.09",
+  "lastUsd": "1.78",
+  "alerts": [
+   {
+    "id": "amber:9zSsWtdEJ3FTqziW14HvdTDa7wAZtCzZ6d5AZ65YtH8u",
+    "level": "amber",
+    "at": 1790430643,
+    "leadSeconds": 659
+   }
+  ],
+  "url": "https://solscan.io/token/9zSsWtdEJ3FTqziW14HvdTDa7wAZtCzZ6d5AZ65YtH8u"
+ },
+ {
+  "kind": "rug",
+  "mint": "FMbbdNJNykhRR7TR5BkFZUxjBHNNRR7QbP6BeReA8bQG",
+  "creator": "6RoKmKjhD1T97F9QnScNjgDg8Jy6JKV6JB3bqiwM7niX",
+  "at": 1790431353,
+  "origin": "realtime",
+  "mechanism": "dev-dump",
+  "trigger": {
+   "type": "swap",
+   "actor": "6RoKmKjhD1T97F9QnScNjgDg8Jy6JKV6JB3bqiwM7niX",
+   "pool": "FYCUffRWxj4fcvJbAhVHTPDHgzjgaCFQUWYmop3fCnyH",
+   "dex": "meteora_damm2",
+   "signature": "5K1zTP2qZEE26kokYeoBVAqjKwVQSzaNKLcYMLtoYhSnTM1oPA9rvYVmG43dH99cPnCAMM4xLAthM7jjJK4GNyYF",
+   "slot": 450695692,
+   "txIndex": 481,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "1705.51",
+  "lastUsd": "2.26",
+  "alerts": [
+   {
+    "id": "amber:FMbbdNJNykhRR7TR5BkFZUxjBHNNRR7QbP6BeReA8bQG",
+    "level": "amber",
+    "at": 1790431031,
+    "leadSeconds": 322
+   }
+  ],
+  "url": "https://solscan.io/token/FMbbdNJNykhRR7TR5BkFZUxjBHNNRR7QbP6BeReA8bQG"
+ },
+ {
+  "kind": "alert",
+  "id": "amber:GbKawFenQ2VES6UyMRKPYHJ3KQgd6BssLzjUeXcC3Hzx",
+  "level": "amber",
+  "rule": "repeat-rugger",
+  "mint": "GbKawFenQ2VES6UyMRKPYHJ3KQgd6BssLzjUeXcC3Hzx",
+  "creator": "6RoKmKjhD1T97F9QnScNjgDg8Jy6JKV6JB3bqiwM7niX",
+  "at": 1790431433,
+  "origin": "realtime",
+  "trigger": {
+   "type": "graduation",
+   "pool": "3JvRPWyxkSaiZBZjSuGHpYcb33ARjNDspVUtiv8SpoRz",
+   "dex": "meteora_damm2",
+   "signature": null,
+   "slot": 450695989,
+   "txIndex": null,
+   "ixIndex": null,
+   "innerIxIndex": null
+  },
+  "evidence": {
+   "priorRugs": [
+    {
+     "mint": "FMbbdNJNykhRR7TR5BkFZUxjBHNNRR7QbP6BeReA8bQG",
+     "at": 1790431353,
+     "mechanism": "dev-dump"
+    },
+    {
+     "mint": "9F8fWC1DaUprEDiQckD8UHncBQKG1azudu9dxTWCnPbM",
+     "at": 1790430207,
+     "mechanism": "dev-dump"
+    }
+   ],
+   "priorRugCount": 2
+  },
+  "confidence": {
+   "precision": 0.825287356321839,
+   "confirmed": 359,
+   "fired": 435,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/GbKawFenQ2VES6UyMRKPYHJ3KQgd6BssLzjUeXcC3Hzx"
+ },
+ {
+  "kind": "rug",
+  "mint": "JiAxUkiE15oqMYeckiTqrVH3DqpF5Zot5nHcYyFcpso",
+  "creator": "3JhnBAoMBbaVa5tLR8dU6Ea1tjewHEzcwJxEBg7ssBNa",
+  "at": 1790431443,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "3JhnBAoMBbaVa5tLR8dU6Ea1tjewHEzcwJxEBg7ssBNa",
+   "pool": "5Aj1Zs7joFyGKEEhyPutQ6sGEskoHAawbpzrqmF3bzt4",
+   "dex": "pumpswap",
+   "signature": "44ujt53p4PjALUonZuZpN5og8iHGjbRdkD7X5mAzdRDVuYkTV2TRiK6AXxFrfFK6WfjaChCzkhXTMm1arQBanuPV",
+   "slot": 450696027,
+   "txIndex": 395,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "11606.89",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:JiAxUkiE15oqMYeckiTqrVH3DqpF5Zot5nHcYyFcpso",
+    "level": "red",
+    "at": 1790430937,
+    "leadSeconds": 506
+   }
+  ],
+  "url": "https://solscan.io/token/JiAxUkiE15oqMYeckiTqrVH3DqpF5Zot5nHcYyFcpso"
+ },
+ {
+  "kind": "alert",
+  "id": "red:FZX8g3uKvWAHAVcqxd8CU8pkS9dav1V2QHXfy2zfNi5t",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "FZX8g3uKvWAHAVcqxd8CU8pkS9dav1V2QHXfy2zfNi5t",
+  "creator": "7t1KXwanJ8Y4f1YLfhMtRJHfwVyV2b5AKqz9DW6b4hCG",
+  "at": 1790431981,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "2APZpsVxfqhJGDD6217e1zAngfHUg3NQV7WwCzkJP839",
+   "dex": "pumpswap",
+   "signature": "45oKhJC9XVCRULigtvM1qyz6yoNfrG52HmpQyNX7EqW6Qzjho3ZTJ4BP4wfdxJm7EnLpyqsaiZVqctdSgmxMPceq",
+   "slot": 450698033,
+   "txIndex": 951,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/FZX8g3uKvWAHAVcqxd8CU8pkS9dav1V2QHXfy2zfNi5t"
+ },
+ {
+  "kind": "rug",
+  "mint": "FZX8g3uKvWAHAVcqxd8CU8pkS9dav1V2QHXfy2zfNi5t",
+  "creator": "7t1KXwanJ8Y4f1YLfhMtRJHfwVyV2b5AKqz9DW6b4hCG",
+  "at": 1790432412,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "7t1KXwanJ8Y4f1YLfhMtRJHfwVyV2b5AKqz9DW6b4hCG",
+   "pool": "2APZpsVxfqhJGDD6217e1zAngfHUg3NQV7WwCzkJP839",
+   "dex": "pumpswap",
+   "signature": "4igqKFwnAH2hQhHQx7HQbTBXvz5smxzfkiCvm3x8zA26eabaem5gcb8KNNezFyfNJTGYAvNDEZYo7KivihPzdewp",
+   "slot": 450699645,
+   "txIndex": 774,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "11618.48",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:FZX8g3uKvWAHAVcqxd8CU8pkS9dav1V2QHXfy2zfNi5t",
+    "level": "red",
+    "at": 1790431981,
+    "leadSeconds": 431
+   }
+  ],
+  "url": "https://solscan.io/token/FZX8g3uKvWAHAVcqxd8CU8pkS9dav1V2QHXfy2zfNi5t"
+ },
+ {
+  "kind": "alert",
+  "id": "red:2a4SZmHF9aXBCUVzqXp1RMhqCxzmdwrdsbL6S63Vfour",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "2a4SZmHF9aXBCUVzqXp1RMhqCxzmdwrdsbL6S63Vfour",
+  "creator": "7sHFfqXN56otESUmqgUoX74xpSgNyUU2c4NPXBK2k5Lg",
+  "at": 1790432552,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "AUTXD7e6maWDjowZgKjxfTWGrn57KyunvP8UdHmvZQWN",
+   "dex": "pumpswap",
+   "signature": "2PaABxkHXXjTWFK8omgmntSnobJCm6MYXpPRV8CuF53W5tJAsVCgEsLLMtLTdLVUWdzN1RNcAh8dok4ZTNnw8qVN",
+   "slot": 450700170,
+   "txIndex": 913,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/2a4SZmHF9aXBCUVzqXp1RMhqCxzmdwrdsbL6S63Vfour"
+ },
+ {
+  "kind": "rug",
+  "mint": "2a4SZmHF9aXBCUVzqXp1RMhqCxzmdwrdsbL6S63Vfour",
+  "creator": "7sHFfqXN56otESUmqgUoX74xpSgNyUU2c4NPXBK2k5Lg",
+  "at": 1790432741,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "7sHFfqXN56otESUmqgUoX74xpSgNyUU2c4NPXBK2k5Lg",
+   "pool": "AUTXD7e6maWDjowZgKjxfTWGrn57KyunvP8UdHmvZQWN",
+   "dex": "pumpswap",
+   "signature": "4Gt689roiy5jXQ9oB3TUEyHjvDYT49tWMaiP25o86yCeW71MtnHfFfyZVetM3MQrs1inwHbh4bg7SRC8zb6om34x",
+   "slot": 450700877,
+   "txIndex": 334,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "10499.71",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:2a4SZmHF9aXBCUVzqXp1RMhqCxzmdwrdsbL6S63Vfour",
+    "level": "red",
+    "at": 1790432552,
+    "leadSeconds": 189
+   }
+  ],
+  "url": "https://solscan.io/token/2a4SZmHF9aXBCUVzqXp1RMhqCxzmdwrdsbL6S63Vfour"
+ },
+ {
+  "kind": "alert",
+  "id": "red:B2ZRWKYcSXhjowAXvm8QHatSTTSejd8UDr7W3XVH6svd",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "B2ZRWKYcSXhjowAXvm8QHatSTTSejd8UDr7W3XVH6svd",
+  "creator": "akL2vzuXdG9H2etjex8rRV6UX8Tnf2LDVYoQeGrE8T5",
+  "at": 1790433805,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "EZRD1Jj4VbfewKmEXGLBbVySH5PAyHTsiFPaFY8XRW5w",
+   "dex": "pumpswap",
+   "signature": "4qnHMHbctXZAsmQMAvKjerNBnHgfeEawpWs4gFdRPRvPTFuQFs1YWRwp7GTTGASV7MipN6Bkw82WoFi9eTauViY3",
+   "slot": 450704841,
+   "txIndex": 15,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/B2ZRWKYcSXhjowAXvm8QHatSTTSejd8UDr7W3XVH6svd"
+ },
+ {
+  "kind": "rug",
+  "mint": "B2ZRWKYcSXhjowAXvm8QHatSTTSejd8UDr7W3XVH6svd",
+  "creator": "akL2vzuXdG9H2etjex8rRV6UX8Tnf2LDVYoQeGrE8T5",
+  "at": 1790434137,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "akL2vzuXdG9H2etjex8rRV6UX8Tnf2LDVYoQeGrE8T5",
+   "pool": "EZRD1Jj4VbfewKmEXGLBbVySH5PAyHTsiFPaFY8XRW5w",
+   "dex": "pumpswap",
+   "signature": "CfjakPzyR6xEBS5YPHuJruC87RWpAnBUFoWyFecX8stdUCRDeqD98EZnnyLgrmtZdt5SzTQtH7K8jHtWvEZAXsn",
+   "slot": 450706073,
+   "txIndex": 575,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "10677.99",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:B2ZRWKYcSXhjowAXvm8QHatSTTSejd8UDr7W3XVH6svd",
+    "level": "red",
+    "at": 1790433805,
+    "leadSeconds": 332
+   }
+  ],
+  "url": "https://solscan.io/token/B2ZRWKYcSXhjowAXvm8QHatSTTSejd8UDr7W3XVH6svd"
+ },
+ {
+  "kind": "alert",
+  "id": "red:G8tLxmkadfFDyrPZebvGYucNzXcmn8qiNuzoYJsdNYeY",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "G8tLxmkadfFDyrPZebvGYucNzXcmn8qiNuzoYJsdNYeY",
+  "creator": "789cyT29hnkZhJRmTzVwx78HHgyqB5srqNRCYFSst7a",
+  "at": 1790434607,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "25Khmn5tr7vuJwBRCMa6pRfcTDN7PyasiwyVeR9Gh1z6",
+   "dex": "pumpswap",
+   "signature": "5qEYEd5UnaCrcTcWS7i9TJQgxYwovgXAFCqWwF2jURMGzeustgEYXo6L6iJhB88Dm5VwJGPLG4g4A8a92VHaBVqK",
+   "slot": 450707818,
+   "txIndex": 829,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/G8tLxmkadfFDyrPZebvGYucNzXcmn8qiNuzoYJsdNYeY"
+ },
+ {
+  "kind": "alert",
+  "id": "red:7sGBPoiQyxybw6TC7PuRgco4fi36nk4zvZB9ny1Cfour",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "7sGBPoiQyxybw6TC7PuRgco4fi36nk4zvZB9ny1Cfour",
+  "creator": "G5berDeQk5JQaJBPMWYqoSnW3qUJu4Xgjrb5mTg3J1qY",
+  "at": 1790434625,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "6UqLe6t8og2h6o2hfB6k3AVdYzUQXpSUqrx2yXQTv2L",
+   "dex": "pumpswap",
+   "signature": "53aFAu751Ua1gyDK829cndXRgLvyjqRfejgNpHkcFWVjBRQjoe3yCLfZr3QBrKKpiFchYzGVUm2bqx8uCgG8q2do",
+   "slot": 450707885,
+   "txIndex": 791,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/7sGBPoiQyxybw6TC7PuRgco4fi36nk4zvZB9ny1Cfour"
+ },
+ {
+  "kind": "rug",
+  "mint": "7sGBPoiQyxybw6TC7PuRgco4fi36nk4zvZB9ny1Cfour",
+  "creator": "G5berDeQk5JQaJBPMWYqoSnW3qUJu4Xgjrb5mTg3J1qY",
+  "at": 1790434711,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "G5berDeQk5JQaJBPMWYqoSnW3qUJu4Xgjrb5mTg3J1qY",
+   "pool": "6UqLe6t8og2h6o2hfB6k3AVdYzUQXpSUqrx2yXQTv2L",
+   "dex": "pumpswap",
+   "signature": "33xaiNps6oU48zBPsPPNJjiqfwBRA7g2WN3cWBEJ8qEF6BqvRW39q38D213LDuQegpVRrJFVBZvUqojt8oa9Pumj",
+   "slot": 450708206,
+   "txIndex": 151,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "10407.37",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:7sGBPoiQyxybw6TC7PuRgco4fi36nk4zvZB9ny1Cfour",
+    "level": "red",
+    "at": 1790434625,
+    "leadSeconds": 86
+   }
+  ],
+  "url": "https://solscan.io/token/7sGBPoiQyxybw6TC7PuRgco4fi36nk4zvZB9ny1Cfour"
+ },
+ {
+  "kind": "alert",
+  "id": "red:4SxaNZYLKrwAGkFoobfFVrub8wRfQapciKLSccrXoKFi",
+  "level": "red",
+  "rule": "creator-adds-liquidity",
+  "mint": "4SxaNZYLKrwAGkFoobfFVrub8wRfQapciKLSccrXoKFi",
+  "creator": "8sUahxfdnLL7yiZVtkHuWXT296jC6aB7FBbxYTNhjyPV",
+  "at": 1790434853,
+  "origin": "realtime",
+  "trigger": {
+   "type": "liquidity",
+   "pool": "CGSX3721YM7pHvNwTMkNDRn6BSnKd2Gh8usTKMqLBEWP",
+   "dex": "pumpswap",
+   "signature": "nLKQkRXBvNQAjhCph7mQGekr1Q38xZ4yofsz2m4a1rcpANGiQ6AREyfiAiMg9d7staraKDnUSQaxBh9N5FZdxLa",
+   "slot": 450708732,
+   "txIndex": 970,
+   "ixIndex": 2,
+   "innerIxIndex": -1
+  },
+  "evidence": {
+   "quoteAmount": "84.99",
+   "quoteMint": "So11111111111111111111111111111111111111112",
+   "fingerprint": true
+  },
+  "confidence": {
+   "precision": 0.9791183294663574,
+   "confirmed": 422,
+   "fired": 431,
+   "measuredOn": "2026-09-26 night capture, 10.3 h (docs/ANALISIS_calibracion.md)"
+  },
+  "url": "https://solscan.io/token/4SxaNZYLKrwAGkFoobfFVrub8wRfQapciKLSccrXoKFi"
+ },
+ {
+  "kind": "rug",
+  "mint": "G8tLxmkadfFDyrPZebvGYucNzXcmn8qiNuzoYJsdNYeY",
+  "creator": "789cyT29hnkZhJRmTzVwx78HHgyqB5srqNRCYFSst7a",
+  "at": 1790434994,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "789cyT29hnkZhJRmTzVwx78HHgyqB5srqNRCYFSst7a",
+   "pool": "25Khmn5tr7vuJwBRCMa6pRfcTDN7PyasiwyVeR9Gh1z6",
+   "dex": "pumpswap",
+   "signature": "36QZcH6dGtp1KV92o2tD391v4fP3xxmumK6Mejoso8aSpLCXDJo783RF47BNNy8uftRdwezXCYsGjA9ovzAGVQzp",
+   "slot": 450709257,
+   "txIndex": 1134,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "10700.79",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:G8tLxmkadfFDyrPZebvGYucNzXcmn8qiNuzoYJsdNYeY",
+    "level": "red",
+    "at": 1790434607,
+    "leadSeconds": 387
+   }
+  ],
+  "url": "https://solscan.io/token/G8tLxmkadfFDyrPZebvGYucNzXcmn8qiNuzoYJsdNYeY"
+ },
+ {
+  "kind": "rug",
+  "mint": "4SxaNZYLKrwAGkFoobfFVrub8wRfQapciKLSccrXoKFi",
+  "creator": "8sUahxfdnLL7yiZVtkHuWXT296jC6aB7FBbxYTNhjyPV",
+  "at": 1790435348,
+  "origin": "realtime",
+  "mechanism": "creator-pull",
+  "trigger": {
+   "type": "liquidity",
+   "actor": "8sUahxfdnLL7yiZVtkHuWXT296jC6aB7FBbxYTNhjyPV",
+   "pool": "CGSX3721YM7pHvNwTMkNDRn6BSnKd2Gh8usTKMqLBEWP",
+   "dex": "pumpswap",
+   "signature": "2dRjq8waH7hXtZ8jAuNsbxwZu5QDjF133cpmYEv5FsYjMLa8EGD8yLvNtrWNejFxvnRp332KqtwpU8DBVmhpyWUc",
+   "slot": 450710577,
+   "txIndex": 1233,
+   "ixIndex": 0,
+   "innerIxIndex": -1
+  },
+  "peakUsd": "11665.35",
+  "lastUsd": "0.00",
+  "alerts": [
+   {
+    "id": "red:4SxaNZYLKrwAGkFoobfFVrub8wRfQapciKLSccrXoKFi",
+    "level": "red",
+    "at": 1790434853,
+    "leadSeconds": 495
+   }
+  ],
+  "url": "https://solscan.io/token/4SxaNZYLKrwAGkFoobfFVrub8wRfQapciKLSccrXoKFi"
+ }
+]

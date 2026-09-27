@@ -57,6 +57,6 @@ export function createLiveSource(
   });
 }
 
-export function createReplaySource(config: AppConfig, paths: readonly string[]): ReplaySource {
-  return new ReplaySource({ paths, dedupWindowPerType: config.stream.dedupWindowPerType });
+export function createReplaySource(config: AppConfig, paths: readonly string[], speed = 0): ReplaySource {
+  return new ReplaySource({ paths, dedupWindowPerType: config.stream.dedupWindowPerType, speed });
 }
