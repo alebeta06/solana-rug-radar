@@ -116,15 +116,16 @@ function render(v) {
   const unconf = v.unconfirmed.map((a) => '<div class="small row">' + dot(a.level) + link(a.tokenUrl, short(a.mint)) + '<span class="dim">' + hms(a.at) + ' · no drain within 60 min: counts against precision</span></div>').join('');
   $('open').innerHTML = (open || '<div class="empty">None right now.</div>') + more + (unconf ? '<div style="margin-top:6px"><b class="small">Alerted, but NOT drained</b>' + unconf + '</div>' : '');
 
+  const caveat = v.selectionCaveat === null ? '' : '<div class="small dim" style="margin-top:4px">' + esc(v.selectionCaveat) + '</div>';
   $('rules').innerHTML = v.rules.map((r) => '<div class="rule ' + r.level + '"><div class="row"><span class="big">' + pct(r.measured.precision) + '</span><b>' + esc(r.name) + '</b></div>' +
       '<div class="small">' + esc(r.meaning) + '. <span class="dim">Measured on a full night: ' + r.measured.confirmed + ' of ' + r.measured.fired + ' drained, median warning ' + dur(r.measured.medianLeadSeconds) + '.</span></div>' +
       '<div class="small">' + esc(v.scope) + ': ' + r.live.fired + ' fired · ' + r.live.confirmed + ' drained · ' + r.live.unconfirmed + ' not drained · ' + r.live.open + ' open' +
-      (r.live.precision === null ? '' : ' · <b>precision ' + pct(r.live.precision) + '</b>') + '</div></div>').join('');
+      (r.live.precision === null ? '' : ' · <b>precision ' + pct(r.live.precision) + '</b>') + '</div></div>').join('') + caveat;
 
   const s = v.blind.session;
   const unwarned = Object.entries(s.unwarnedByMechanism).map(([k, n]) => n + ' ' + esc(k)).join(', ');
   $('blind').innerHTML = '<h2>What it does NOT see</h2><div class="small">It warned before <b>' + pct(v.blind.measuredRecall) + '</b> of the pool rugs of a full measured night. Blind to ' + esc(v.blind.text) + '</div>' +
-      '<div class="small" style="margin-top:4px"><b>' + esc(v.scope) + ':</b> ' + s.rugs + ' drains confirmed, ' + s.warned + ' warned before' + (unwarned ? '; <b>no warning: ' + unwarned + '</b>' : '') + '.</div>';
+      '<div class="small" style="margin-top:4px"><b>' + esc(v.scope) + ':</b> ' + s.rugs + ' drains confirmed, ' + s.warned + ' warned before' + (unwarned ? '; <b>no warning: ' + unwarned + '</b>' : '') + '.</div>' + caveat;
 
   const y = v.system;
   const stat = (label, value) => '<div><div class="small dim">' + label + '</div><b>' + value + '</b></div>';

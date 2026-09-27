@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { unixMillis, unixSeconds } from '../../src/core/time.js';
 import { Feed } from '../../src/dashboard/feed.js';
 import { PAGE } from '../../src/dashboard/page.js';
-import { buildView, MAX_OPEN, MEASURED_RECALL, RateMeter, type ViewInput } from '../../src/dashboard/view.js';
+import { buildView, MAX_OPEN, MEASURED_RECALL, RateMeter, SELECTION_CAVEAT, type ViewInput } from '../../src/dashboard/view.js';
 import { CONFIDENCE } from '../../src/detector/detector.js';
 import type { Alert, AlertLevel, DetectorStats, LevelStats, RugMechanism, RugRecord } from '../../src/detector/types.js';
 import { startHealthServer } from '../../src/ingest/health.js';
@@ -166,7 +166,18 @@ describe('dashboard view: live, replay and finished replay never look alike', ()
     expect(v.system.state).toBe('closed');
   });
 
-  it('before any event: no clock, no day, nothing invented', () => {
+  it('says the replay was chosen around alerted tokens (its ratios run high); never live, where it would be false', () => {
+    const live = view(feed, T, { source: source({ origin: 'live', state: 'live' }) });
+    expect(live.selectionCaveat).toBeNull();
+    expect(view(feed, T, { source: source({ origin: 'live', state: 'reconnecting' }), warmingUp: true }).selectionCaveat).toBeNull();
+    for (const state of ['replaying', 'closed'] as const) {
+      expect(view(feed, T, { source: source({ state }) }).selectionCaveat).toBe(SELECTION_CAVEAT);
+    }
+    expect(SELECTION_CAVEAT).toMatch(/chosen around tokens that raised alerts/);
+    expect(SELECTION_CAVEAT).toMatch(/neither precision nor recall/);
+  });
+
+    it('before any event: no clock, no day, nothing invented', () => {
     const v = view(new Feed(), null);
     expect(v).toMatchObject({ clock: null, day: null, sequences: [], open: [], unconfirmed: [] });
   });

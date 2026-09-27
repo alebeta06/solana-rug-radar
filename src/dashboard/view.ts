@@ -101,6 +101,11 @@ export interface DashboardView {
   readonly speed: number | null;
   /** What "so far" counts: this replay, or live including the registry's reloaded days. */
   readonly scope: string;
+  /**
+   * Replay only (null live): the demo recording was chosen around tokens that raised alerts, so its
+   * own ratios (drains warned, precision so far) run high and measure nothing. Live has no such bias.
+   */
+  readonly selectionCaveat: string | null;
   /** UTC date of the recording (replay) or of the stream. */
   readonly day: string | null;
   /** Event time, seconds. */
@@ -152,6 +157,9 @@ const MECHANISM: Record<RugMechanism, string> = {
   'sell-off': 'sold off by other wallets',
   'third-party-remove': 'liquidity removed by another wallet',
 };
+
+export const SELECTION_CAVEAT =
+  'This recording was chosen around tokens that raised alerts: its ratios measure neither precision nor recall. The measured figures are the ones above.';
 
 export const DROPPED_SIGNALS: readonly { signal: string; why: string }[] = [
   { signal: '> 10 launches in 24 h (alone)', why: '1.0 % precision: serial launchers mostly spam tokens that never graduate' },
@@ -262,6 +270,7 @@ export function buildView(input: ViewInput): DashboardView {
     connected: mode === 'live' && (source.state === 'live' || source.state === 'backfilling'),
     speed: mode === 'live' ? null : input.speed,
     scope: mode === 'live' ? `Live, incl. the saved last ${input.historyDays} days` : 'This replay',
+    selectionCaveat: mode === 'live' ? null : SELECTION_CAVEAT,
     day: clock === null ? null : new Date(clock * 1000).toISOString().slice(0, 10),
     clock,
     sequences,
