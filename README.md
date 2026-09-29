@@ -4,6 +4,10 @@ Real-time detection of **serial rug-pull operators** on Solana, built on
 [Solami](https://solami.dev)'s Blur data stream.
 Solami sidetrack, Colosseum Crypto World's Fair hackathon.
 
+[![Watch the demo on YouTube](https://img.shields.io/badge/Watch%20the%20demo-3%20min%2C%20live%20on%20mainnet-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/eeqsJjTLrds)
+
+[![solana-rug-radar: warning 8 minutes before a live Solana rug pull](https://img.youtube.com/vi/eeqsJjTLrds/maxresdefault.jpg)](https://youtu.be/eeqsJjTLrds)
+
 > **Status: complete (5 of 5 phases).** One command (`docker compose up --build`) starts the
 > radar and its dashboard at <http://localhost:8080/>. With a Solami key it watches the live
 > stream; without one it replays a real recorded hour through the same detector, labelled as a
@@ -199,7 +203,9 @@ docker compose up --build
 - **With an API key** (`SOLAMI_API_KEY` in `.env`): rebuilds its memory from the last 24 h
   saved in `./data/live/` (if any), connects to the live Blur stream, starts from the backfill
   and switches to realtime, enriching creators through the REST API at 1 req/s. The raw stream
-  is saved to `./data/live/`.
+  is saved to `./data/live/`. No Solami account? [Sign up here](https://solami.dev/signup?ref=st-earn-sep-26)
+  for a free 7-day Pro trial: it covers everything this project uses (the Blur stream and the
+  Data API), so you can run it live without paying.
 - **Without a key:** replays the bundled demo capture (`samples/demo-20260926.jsonl.gz`, below)
   through the same pipeline, state and detector (REST budget simulated), 40× faster than real
   time, and then keeps showing the final state. A jury needs nothing else.
@@ -222,6 +228,18 @@ it shows, in order of importance:
    that got no warning, counted as they happen.
 5. **System** — stream state, events/s, tokens and creators in memory, REST budget, memory; and
    the signals we tested and dropped, with the reason.
+
+Two things to know before reading the live counters:
+
+- **"So far" includes the last 7 days.** Live, the counters include the alerts and drains saved
+  in `data/alerts/` over the last 7 days, and the page says so. If the process was stopped when
+  a drain happened, nobody saw it: its alert ends up as "not drained" and lowers the session's
+  precision.
+- **A short session shows low recall, and that is not the detector failing.** It can only warn
+  about a token whose launch it saw, and in the first minutes almost every token that gets
+  drained was launched before we connected. The 65.3 % is measured over a full night, where
+  each token's whole life is visible. Measured live on 2026-09-29: after 15 minutes, 17 of 33
+  drains had been warned.
 
 Times are **event time** (block time). The badge in the corner says which of these it is, and
 they never look alike:
@@ -321,3 +339,7 @@ tests/                  vitest suites + tests/fixtures (redacted real frames)
 docs/dashboard-*.png    the dashboard, live and in replay
 docs/RESUMEN_Fase_*.md  design rationale per phase, decision by decision (Spanish)
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Alejandro Betancourt
